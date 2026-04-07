@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ar" dir="ltr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Crypto Pro Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = { darkMode: 'class', theme: { extend: { colors: { darkBg: '#0f172a', darkCard: '#1e293b', accent: '#3b82f6', } } } }
+    </script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .coin-card { transition: all 0.2s ease-in-out; }
+        .coin-card:hover { transform: translateX(5px); }
+        .active-card { border-left: 4px solid #3b82f6; background-color: #1e293b; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-darkCard border-b border-gray-800 p-3 shadow-md flex justify-between items-center z-10">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-chart-pie text-accent text-2xl"></i>
+            <h1 class="text-xl font-bold tracking-wider">AI Quant <span class="text-accent">Terminal</span></h1>
+        </div>
+        <div id="statusIndicator" class="px-3 py-1 rounded bg-yellow-500/20 text-yellow-400 text-xs font-semibold border border-yellow-500/30 flex items-center gap-2">
+            <i class="fa-solid fa-spinner fa-spin"></i> Syncing...
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        
+        <aside class="w-72 bg-[#0b1120] border-r border-gray-800 overflow-y-auto p-3 flex flex-col gap-2" id="coinsSidebar"></aside>
+
+        <section class="flex-1 p-5 overflow-y-auto hidden flex flex-col" id="mainDashboard">
+            
+            <div class="flex justify-between items-end mb-4">
+                <div>
+                    <h2 class="text-3xl font-bold flex items-center gap-2" id="selectedCoinTitle">BTC/USD <span class="text-xs bg-accent text-white px-2 py-1 rounded">PRO</span></h2>
+                    <p class="text-gray-400 text-sm mt-1">Algorithmic Confluence & Predictions</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Live Market Price</p>
+                    <h3 class="text-3xl font-mono font-bold text-gray-100" id="selectedCoinPrice">$0.00</h3>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+                
+                <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-darkCard p-3 rounded-lg border border-gray-800 shadow-sm flex flex-col justify-between">
+                        <p class="text-gray-400 text-xs uppercase mb-1"><i class="fa-solid fa-robot mr-1"></i> AI Vector</p>
+                        <div class="flex justify-between items-end">
+                            <p class="text-xl font-bold" id="aiDirection">-</p>
+                            <p class="text-sm font-bold text-accent bg-blue-900/30 px-2 rounded" id="aiConfidence">-</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-darkCard p-3 rounded-lg border border-gray-800 shadow-sm col-span-2">
+                        <p class="text-gray-400 text-xs uppercase mb-2"><i class="fa-solid fa-layer-group mr-1"></i> Timeframe Confluence</p>
+                        <div class="flex gap-2">
+                            <div class="flex-1 bg-[#151f32] p-1.5 rounded text-center border border-gray-700/50">
+                                <p class="text-[10px] text-gray-500 mb-0.5">Short Term</p>
+                                <p class="font-bold text-sm" id="mtfShort">-</p>
+                            </div>
+                            <div class="flex-1 bg-[#151f32] p-1.5 rounded text-center border border-gray-700/50">
+                                <p class="text-[10px] text-gray-500 mb-0.5">Medium Term</p>
+                                <p class="font-bold text-sm" id="mtfMed">-</p>
+                            </div>
+                            <div class="flex-1 bg-[#151f32] p-1.5 rounded text-center border border-gray-700/50">
+                                <p class="text-[10px] text-gray-500 mb-0.5">Macro Trend</p>
+                                <p class="font-bold text-sm" id="mtfLong">-</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-1 bg-darkCard p-3 rounded-lg border border-gray-800 shadow-sm flex flex-col gap-3 relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 opacity-5 text-6xl"><i class="fa-solid fa-shield-halved"></i></div>
+                    <p class="text-gray-400 text-xs uppercase border-b border-gray-700 pb-1">Risk Profile: <span id="aiRisk" class="font-bold">-</span></p>
+                    
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-300">Max Drawdown</span>
+                        <span class="text-sm font-mono text-red-400 font-bold" id="riskMdd">0%</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-300">Value at Risk</span>
+                        <span class="text-sm font-mono text-yellow-400 font-bold" id="riskVar">0%</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-300">Risk/Reward</span>
+                        <span class="text-sm font-mono font-bold" id="riskRr">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-900/10 border-l-2 border-blue-500 p-3 mb-4 flex items-center gap-3">
+                <i class="fa-solid fa-satellite-dish text-accent text-lg"></i>
+                <p class="text-sm text-gray-300" id="aiInsightText">Loading NLP insight...</p>
+            </div>
+
+            <div class="bg-[#111827] rounded-lg border border-gray-700 p-3 mb-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-gray-400"></i>
+                    <span class="text-sm font-bold text-gray-300 uppercase tracking-wider">AI Track Record <span class="text-[10px] text-gray-500 normal-case">(Last 7 Days)</span></span>
+                </div>
+                <div class="flex gap-6">
+                    <div class="text-center">
+                        <p class="text-[10px] text-gray-500 uppercase">Win Rate</p>
+                        <p class="text-lg font-bold" id="btWinRate">0%</p>
+                    </div>
+                    <div class="text-center border-l border-gray-700 pl-6">
+                        <p class="text-[10px] text-gray-500 uppercase">Simulated PnL</p>
+                        <p class="text-lg font-bold font-mono" id="btPnl">0.00%</p>
+                    </div>
+                    <div class="text-center border-l border-gray-700 pl-6">
+                        <p class="text-[10px] text-gray-500 uppercase">Signals Found</p>
+                        <p class="text-lg font-bold text-gray-300" id="btTrades">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 bg-darkCard p-4 rounded-xl border border-gray-800 shadow-lg relative min-h-[350px]">
+                <canvas id="fintechChart"></canvas>
+            </div>
+            
+        </section>
+    </main>
+
+    <script>
+        let globalMarketData = {}; 
+        let currentSelectedCoin = 'BTC'; 
+        let pollInterval = null;
+        let activeChart = null; 
+
+        async function fetchAndRefreshData(isInitial = false) {
+            try {
+                const res = await fetch("/api/ai-analysis/");
+                const newData = await res.json();
+
+                if (newData.status === "initializing") {
+                    updateStatusIndicator(newData.message, "yellow");
+                    return;
+                }
+
+                globalMarketData = newData;
+                updateStatusIndicator("System Live", "green");
+                renderSidebarCoins();
+                
+                if (isInitial) {
+                    const availableCoins = Object.keys(globalMarketData).filter(c => !globalMarketData[c].error);
+                    if(availableCoins.length > 0) selectCoin(availableCoins[0]);
+                } else {
+                    selectCoin(currentSelectedCoin);
+                }
+            } catch (error) {
+                console.error("Sync Error:", error);
+                updateStatusIndicator("Connection Lost", "red");
+            }
+        }
+
+        function updateStatusIndicator(text, color = "green") {
+            const el = document.getElementById("statusIndicator");
+            const icon = color === "green" ? "fa-circle-check" : (color === "red" ? "fa-link-slash" : "fa-spinner fa-spin");
+            el.className = `px-3 py-1 rounded text-xs font-bold flex items-center gap-2 ${color === "green" ? "bg-green-500/20 text-green-400 border border-green-500/30" : (color === "red" ? "bg-red-500/20 text-red-400 border border-red-500/30" : "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30")}`;
+            el.innerHTML = `<i class="fa-solid ${icon}"></i> ${text}`;
+        }
+
+        function renderSidebarCoins() {
+            const sidebar = document.getElementById("coinsSidebar");
+            sidebar.innerHTML = '<h3 class="text-gray-500 text-[10px] font-bold uppercase tracking-wider mb-2 px-2">Watchlist</h3>';
+
+            for (const [coin, data] of Object.entries(globalMarketData)) {
+                if (data.error) continue;
+                const isUp = data.direction === "UP";
+                
+                const cardHTML = `
+                    <div id="card-${coin}" class="coin-card bg-darkCard border border-gray-800 rounded p-3 cursor-pointer mb-1" onclick="selectCoin('${coin}')">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-sm text-gray-200">${coin}</span>
+                            <span class="${isUp ? 'text-green-400' : 'text-red-400'} text-xs font-bold"><i class="fa-solid ${isUp ? 'fa-arrow-up' : 'fa-arrow-down'}"></i></span>
+                        </div>
+                        <p class="text-xs font-mono text-gray-400">$${data.current_price.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                    </div>
+                `;
+                sidebar.insertAdjacentHTML('beforeend', cardHTML);
+            }
+            if(document.getElementById(`card-${currentSelectedCoin}`)) {
+                document.getElementById(`card-${currentSelectedCoin}`).classList.add('active-card');
+            }
+        }
+
+        function selectCoin(coin) {
+            currentSelectedCoin = coin;
+            const data = globalMarketData[coin];
+            if (!data || data.error) return;
+
+            document.querySelectorAll('.coin-card').forEach(c => c.classList.remove('active-card'));
+            document.getElementById(`card-${coin}`).classList.add('active-card');
+
+            document.getElementById("selectedCoinTitle").innerHTML = `${coin}/USD <span class="text-[10px] align-middle bg-accent text-white px-2 py-0.5 rounded ml-2">QUANT</span>`;
+            
+            const priceEl = document.getElementById("selectedCoinPrice");
+            priceEl.innerText = `$${data.current_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})}`;
+            
+            document.getElementById("aiDirection").innerHTML = data.direction === "UP" ? '<span class="text-green-400">Bullish</span>' : '<span class="text-red-400">Bearish</span>';
+            document.getElementById("aiConfidence").innerText = `${(data.confidence * 100).toFixed(1)}% Conf`;
+            
+            const riskEl = document.getElementById("aiRisk");
+            riskEl.innerText = data.risk_level;
+            riskEl.className = data.risk_level === "HIGH RISK" ? "font-bold text-red-400" : (data.risk_level === "MEDIUM RISK" ? "font-bold text-yellow-400" : "font-bold text-green-400");
+            
+            document.getElementById("aiInsightText").innerText = data.insight;
+            document.getElementById("riskMdd").innerText = `-${data.max_drawdown}%`;
+            document.getElementById("riskVar").innerText = `${data.value_at_risk}%`;
+            
+            const rrEl = document.getElementById("riskRr");
+            rrEl.innerText = data.risk_reward;
+            rrEl.className = `text-sm font-mono font-bold ${data.risk_reward > 2.0 ? 'text-green-400' : (data.risk_reward > 1.0 ? 'text-yellow-400' : 'text-red-400')}`;
+
+            const setMTF = (id, dir) => {
+                document.getElementById(id).innerHTML = dir === "UP" ? '<span class="text-green-400"><i class="fa-solid fa-arrow-trend-up"></i></span>' : '<span class="text-red-400"><i class="fa-solid fa-arrow-trend-down"></i></span>';
+            };
+            setMTF('mtfShort', data.mtf_short);
+            setMTF('mtfMed', data.mtf_med);
+            setMTF('mtfLong', data.mtf_long);
+
+            // Backtesting UI Update
+            const winRateEl = document.getElementById("btWinRate");
+            winRateEl.innerText = `${data.bt_win_rate}%`;
+            winRateEl.className = `text-lg font-bold ${data.bt_win_rate >= 50 ? 'text-green-400' : 'text-red-400'}`;
+
+            const pnlEl = document.getElementById("btPnl");
+            pnlEl.innerText = `${data.bt_pnl > 0 ? '+' : ''}${data.bt_pnl}%`;
+            pnlEl.className = `text-lg font-bold font-mono ${data.bt_pnl >= 0 ? 'text-green-400' : 'text-red-400'}`;
+            
+            document.getElementById("btTrades").innerText = data.bt_trades;
+
+            renderFinTechChart(coin, data);
+        }
+
+        function renderFinTechChart(coin, data) {
+            const ctx = document.getElementById("fintechChart").getContext('2d');
+            
+            if (activeChart) { activeChart.destroy(); }
+
+            const historyPoints = data.chart_data.slice(-24); 
+            let labels = historyPoints.map((_, i) => `T-${24-i}H`);
+            let prices = historyPoints.map(d => d.close);
+            
+            data.forecast_next_hours.forEach((pred, i) => {
+                labels.push(`AI +${i+1}H`);
+                prices.push(pred);
+            });
+
+            const isUp = data.direction === "UP";
+            const mainColor = isUp ? 'rgba(34, 197, 94, 1)' : 'rgba(239, 68, 68, 1)';
+            const bgColor = isUp ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+            
+            let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, bgColor);
+            gradient.addColorStop(1, 'rgba(15, 23, 42, 0)');
+
+            activeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `${coin} Price Path`,
+                        data: prices,
+                        borderColor: mainColor,
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        pointRadius: 0, 
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.4, 
+                        segment: {
+                            borderDash: ctx => ctx.p0DataIndex >= 23 ? [5, 5] : undefined,
+                            borderColor: ctx => ctx.p0DataIndex >= 23 ? 'rgba(59, 130, 246, 1)' : mainColor 
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#cbd5e1',
+                            borderColor: '#334155',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: false,
+                            callbacks: { label: function(context) { return `$${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2})}`; } }
+                        }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: { display: true, position: 'right', grid: { display: false }, border: { display: false }, ticks: { color: '#64748b', font: { family: 'monospace' } } }
+                    }
+                }
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchAndRefreshData(true);
+            pollInterval = setInterval(() => fetchAndRefreshData(false), 60000); 
+            document.getElementById("mainDashboard").classList.remove("hidden");
+        });
+    </script>
+</body>
+</html>

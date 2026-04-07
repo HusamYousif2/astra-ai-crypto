@@ -1,0 +1,12 @@
+# Python & Django
+__pycache__/
+*.pyc
+db.sqlite3
+.env
+venv/
+env/
+
+# AI Models (CRITICAL: Do not upload heavy weights to GitHub)
+market/models/*.h5
+market/models/*.pkl
+models/
