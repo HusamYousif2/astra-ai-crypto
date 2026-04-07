@@ -10,3 +10,4 @@ env/
 market/models/*.h5
 market/models/*.pkl
 models/
+models/*
