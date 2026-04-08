@@ -58,18 +58,19 @@
 import requests
 import pandas as pd
 from datetime import datetime
+import os
 
 URL = "https://min-api.cryptocompare.com/data/v2/histohour"
 
 COINS = ["BTC","ETH","BNB","ADA","DOGE","DOT","LTC"]
 
 # 1.api key
-API_KEY = "f9dc9aa774f441add9554c80a1b6cce0d457661c75e8594ef8097a8459fe6921"
+API_KEY = os.getenv("CRYPTOCOMPARE_API_KEY")
 
 def fetch_coin_data(symbol):
     # 2.api key
     headers = {
-        "authorization": f"Apikey {API_KEY}"
+         "authorization": f"Apikey {API_KEY}"
     }
     
     params = {
