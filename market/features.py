@@ -1,5 +1,5 @@
 import pandas as pd
-import ta
+import ta # type: ignore
 
 
 def add_indicators(df):

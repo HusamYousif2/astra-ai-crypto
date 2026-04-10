@@ -1,382 +1,775 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr" class="dark">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Astra AI | Smart Crypto Analysis</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Astra Intelligence | Crypto Decision Workspace</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    
-    <script>
-        tailwind.config = { 
-            darkMode: 'class', 
-            theme: { 
-                extend: { 
-                    fontFamily: { sans: ['Outfit', 'sans-serif'] },
-                    colors: { brand: '#4f46e5', brandDark: '#0f172a', brandCard: '#1e293b' } 
-                } 
-            } 
-        }
-    </script>
-    <style>
-        body { background-color: #0f172a; color: #f8fafc; }
-        /*hide scroll bar*/
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
-        * { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-        /* Tooltip styles */
-        .info-tooltip { visibility: hidden; opacity: 0; transition: opacity 0.2s; }
-        .info-icon:hover .info-tooltip { visibility: visible; opacity: 1; }
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"]
+                    },
+                    colors: {
+                        shell: "#f5f7f4",
+                        ink: "#111827",
+                        panel: "#ffffff",
+                        line: "#e5e7eb",
+                        mist: "#f0fdf4",
+                        pine: "#14532d",
+                        moss: "#166534",
+                        amberSoft: "#fef3c7",
+                        amberText: "#92400e",
+                        roseSoft: "#ffe4e6",
+                        roseText: "#9f1239",
+                        slateSoft: "#eef2ff",
+                        slateText: "#3730a3"
+                    },
+                    boxShadow: {
+                        soft: "0 10px 30px rgba(17, 24, 39, 0.08)",
+                        gentle: "0 4px 14px rgba(17, 24, 39, 0.05)"
+                    }
+                }
+            }
+        };
+    </script>
+
+    <style>
+        body {
+            background:
+                radial-gradient(circle at top left, rgba(34, 197, 94, 0.06), transparent 28%),
+                radial-gradient(circle at top right, rgba(59, 130, 246, 0.05), transparent 22%),
+                #f5f7f4;
+        }
+
+        .glass-strip {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.75);
+        }
+
+        .coin-chip.active {
+            background: #111827;
+            color: white;
+            border-color: #111827;
+        }
+
+        .signal-buy {
+            background: #dcfce7;
+            color: #166534;
+            border-color: #bbf7d0;
+        }
+
+        .signal-sell {
+            background: #ffe4e6;
+            color: #be123c;
+            border-color: #fecdd3;
+        }
+
+        .signal-hold {
+            background: #fef3c7;
+            color: #92400e;
+            border-color: #fde68a;
+        }
+
+        .sentiment-bullish {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .sentiment-bearish {
+            background: #ffe4e6;
+            color: #be123c;
+        }
+
+        .sentiment-neutral {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .thin-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .thin-scrollbar::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 999px;
+        }
+
+        .thin-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
     </style>
 </head>
+<body class="font-sans text-ink min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <header class="glass-strip sticky top-4 z-50 rounded-3xl border border-white/60 shadow-soft mb-6">
+            <div class="px-5 sm:px-6 py-4 flex flex-col gap-4">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-11 h-11 rounded-2xl bg-ink text-white flex items-center justify-center text-lg font-bold shadow-gentle">
+                                AI
+                            </div>
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.22em] text-gray-500 font-semibold">Astra Intelligence</p>
+                                <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Crypto Decision Workspace</h1>
+                            </div>
+                        </div>
+                    </div>
 
-<body class="h-screen flex flex-col overflow-x-hidden">
-
-    <nav class="bg-brandCard border-b border-gray-800 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                <i class="fa-solid fa-sparkles text-white text-sm"></i>
-            </div>
-            <h1 class="text-2xl font-bold tracking-wide">Astra<span class="font-light text-gray-400">AI</span></h1>
-        </div>
-        <div id="statusIndicator" class="px-3 py-1.5 rounded-full bg-gray-800 text-gray-300 text-xs font-semibold flex items-center gap-2">
-            <i class="fa-solid fa-spinner fa-spin"></i> Connecting...
-        </div>
-    </nav>
-
-    <div class="bg-[#0b1120] border-b border-gray-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex overflow-x-auto py-4 gap-3 no-scrollbar items-center" id="coinSelector">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div id="connectionStatus" class="px-3 py-2 rounded-full border border-line bg-white text-sm font-medium text-gray-700">
+                            Connecting...
+                        </div>
+                        <div class="px-3 py-2 rounded-full border border-line bg-white text-sm font-medium text-gray-700">
+                            Refresh every 60s
+                        </div>
+                    </div>
                 </div>
-        </div>
+
+                <div>
+                    <p class="text-sm text-gray-600 max-w-3xl leading-6">
+                        A clear AI view of market direction, risk, and news context. Built to be useful for both active traders and decision-makers who need fast, readable insight.
+                    </p>
+                </div>
+
+                <div id="coinSelector" class="flex gap-2 overflow-x-auto thin-scrollbar pb-1"></div>
+            </div>
+        </header>
+
+        <main id="dashboardContent" class="hidden space-y-6">
+            <section class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                <div class="xl:col-span-8 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
+                    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+                        <div class="space-y-4">
+                            <div class="flex flex-wrap items-center gap-3">
+                                <h2 id="heroCoin" class="text-4xl sm:text-5xl font-extrabold tracking-tight">BTC</h2>
+                                <span id="heroSignal" class="px-3 py-1.5 rounded-full border text-sm font-bold uppercase tracking-wide">
+                                    HOLD
+                                </span>
+                                <span id="heroRegime" class="px-3 py-1.5 rounded-full bg-slateSoft text-slateText text-sm font-semibold">
+                                    Market Regime
+                                </span>
+                            </div>
+
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Current Price</p>
+                                <div class="flex items-end gap-4">
+                                    <h3 id="heroPrice" class="text-4xl sm:text-5xl font-extrabold">$0.00</h3>
+                                    <div class="pb-2">
+                                        <p class="text-sm text-gray-500">Confidence</p>
+                                        <p id="heroConfidence" class="text-lg font-bold">0%</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                                    <p class="text-sm text-gray-500 mb-1">Risk Posture</p>
+                                    <p id="heroRiskPosture" class="text-lg font-bold">LOW</p>
+                                </div>
+                                <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                                    <p class="text-sm text-gray-500 mb-1">News Sentiment</p>
+                                    <p id="heroNewsLabel" class="text-lg font-bold">NEUTRAL</p>
+                                </div>
+                                <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                                    <p class="text-sm text-gray-500 mb-1">Articles Found</p>
+                                    <p id="heroArticleCount" class="text-lg font-bold">0</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="lg:max-w-sm w-full rounded-3xl border border-line bg-shell p-5">
+                            <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">AI Summary</p>
+                            <p id="heroSummary" class="text-[15px] leading-7 text-gray-700">
+                                Loading current market assessment...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="xl:col-span-4 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
+                    <div class="flex items-center justify-between mb-5">
+                        <div>
+                            <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold">Scenario View</p>
+                            <h3 class="text-xl font-bold mt-1">Expected Move Range</h3>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="rounded-2xl border border-line p-4 bg-shell">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">Bull Case</span>
+                                <span id="bullCase" class="text-lg font-bold text-green-700">0%</span>
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-line p-4 bg-shell">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">Base Case</span>
+                                <span id="baseCase" class="text-lg font-bold text-indigo-700">0%</span>
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-line p-4 bg-shell">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">Bear Case</span>
+                                <span id="bearCase" class="text-lg font-bold text-rose-700">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 rounded-3xl border border-line bg-white p-4">
+                        <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">Guidance</p>
+                        <p class="text-sm leading-6 text-gray-600">
+                            Use this range as a planning tool, not a guarantee. The base case is the AI’s most likely path. The bull and bear cases help frame upside and downside risk.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                <div class="xl:col-span-8 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
+                    <div class="flex items-center justify-between mb-5">
+                        <div>
+                            <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold">Market Structure</p>
+                            <h3 class="text-xl font-bold mt-1">Price and Forecast Context</h3>
+                        </div>
+                    </div>
+                    <div class="h-[380px]">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="xl:col-span-4 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
+                    <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-4">Risk and Quality</p>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="rounded-2xl border border-line bg-shell p-4">
+                            <p class="text-xs text-gray-500 mb-1">Max Drawdown</p>
+                            <p id="riskMdd" class="text-lg font-bold">0%</p>
+                        </div>
+                        <div class="rounded-2xl border border-line bg-shell p-4">
+                            <p class="text-xs text-gray-500 mb-1">Value at Risk</p>
+                            <p id="riskVar" class="text-lg font-bold">0%</p>
+                        </div>
+                        <div class="rounded-2xl border border-line bg-shell p-4">
+                            <p class="text-xs text-gray-500 mb-1">Risk / Reward</p>
+                            <p id="riskReward" class="text-lg font-bold">0</p>
+                        </div>
+                        <div class="rounded-2xl border border-line bg-shell p-4">
+                            <p class="text-xs text-gray-500 mb-1">Volatility</p>
+                            <p id="volatilityValue" class="text-lg font-bold">0</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 grid grid-cols-3 gap-3">
+                        <div class="rounded-2xl border border-line p-4">
+                            <p class="text-xs text-gray-500 mb-1">Win Rate</p>
+                            <p id="btWinRate" class="text-base font-bold">0%</p>
+                        </div>
+                        <div class="rounded-2xl border border-line p-4">
+                            <p class="text-xs text-gray-500 mb-1">Backtest PnL</p>
+                            <p id="btPnl" class="text-base font-bold">0%</p>
+                        </div>
+                        <div class="rounded-2xl border border-line p-4">
+                            <p class="text-xs text-gray-500 mb-1">Trades</p>
+                            <p id="btTrades" class="text-base font-bold">0</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 rounded-3xl border border-line bg-shell p-4">
+                        <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">Multi-Timeframe View</p>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Short-Term</span>
+                                <span id="mtfShort" class="text-sm font-bold">-</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Medium-Term</span>
+                                <span id="mtfMed" class="text-sm font-bold">-</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Long-Term</span>
+                                <span id="mtfLong" class="text-sm font-bold">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-panel border border-line rounded-[28px] shadow-soft p-6">
+                    <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-4">Bullish Factors</p>
+                    <ul id="bullishFactors" class="space-y-3 text-sm text-gray-700 leading-6"></ul>
+                </div>
+
+                <div class="bg-panel border border-line rounded-[28px] shadow-soft p-6">
+                    <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-4">Bearish Factors</p>
+                    <ul id="bearishFactors" class="space-y-3 text-sm text-gray-700 leading-6"></ul>
+                </div>
+
+                <div class="bg-panel border border-line rounded-[28px] shadow-soft p-6">
+                    <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-4">Watchpoints</p>
+                    <ul id="watchpoints" class="space-y-3 text-sm text-gray-700 leading-6"></ul>
+                </div>
+            </section>
+
+            <section class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                <div class="xl:col-span-7 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
+                    <div class="flex items-start justify-between gap-4 mb-6">
+                        <div>
+                            <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold">News Intelligence</p>
+                            <h3 class="text-xl font-bold mt-1">What the AI Saw in the News</h3>
+                        </div>
+                        <span id="newsLabelBadge" class="px-3 py-1.5 rounded-full text-sm font-bold">
+                            NEUTRAL
+                        </span>
+                    </div>
+
+                    <div class="rounded-3xl border border-line bg-shell p-5 mb-5">
+                        <p id="newsSummary" class="text-[15px] leading-7 text-gray-700">
+                            Loading news context...
+                        </p>
+                    </div>
+
+                    <div id="newsArticles" class="space-y-4"></div>
+                </div>
+
+                <div class="xl:col-span-5 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
+                    <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-5">Technical Context</p>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="rounded-2xl border border-line bg-shell p-4">
+                            <p class="text-xs text-gray-500 mb-1">RSI</p>
+                            <p id="techRsi" class="text-lg font-bold">0</p>
+                        </div>
+                        <div class="rounded-2xl border border-line bg-shell p-4">
+                            <p class="text-xs text-gray-500 mb-1">ATR</p>
+                            <p id="techAtr" class="text-lg font-bold">0</p>
+                        </div>
+                        <div class="rounded-2xl border border-line bg-shell p-4">
+                            <p class="text-xs text-gray-500 mb-1">MACD</p>
+                            <p id="techMacd" class="text-lg font-bold">0</p>
+                        </div>
+                        <div class="rounded-2xl border border-line bg-shell p-4">
+                            <p class="text-xs text-gray-500 mb-1">MACD Signal</p>
+                            <p id="techMacdSignal" class="text-lg font-bold">0</p>
+                        </div>
+                        <div class="rounded-2xl border border-line bg-shell p-4">
+                            <p class="text-xs text-gray-500 mb-1">EMA 20</p>
+                            <p id="techEma20" class="text-lg font-bold">0</p>
+                        </div>
+                        <div class="rounded-2xl border border-line bg-shell p-4">
+                            <p class="text-xs text-gray-500 mb-1">SMA 20</p>
+                            <p id="techSma20" class="text-lg font-bold">0</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 rounded-3xl border border-line bg-shell p-5">
+                        <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">How to Read This</p>
+                        <p class="text-sm text-gray-600 leading-6">
+                            RSI and MACD help explain momentum. ATR helps show recent movement size. EMA 20 and SMA 20 help show short-term trend structure. These values support the AI view but should be read together, not in isolation.
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <section id="loadingState" class="bg-panel border border-line rounded-[28px] shadow-soft p-10 text-center">
+            <div class="w-14 h-14 mx-auto rounded-full border-4 border-gray-200 border-t-ink animate-spin mb-5"></div>
+            <h2 class="text-2xl font-bold mb-2">Preparing AI market view</h2>
+            <p class="text-gray-600 max-w-xl mx-auto leading-7">
+                The system is loading the latest market analysis, forecasts, and news context. This usually takes only a moment.
+            </p>
+        </section>
+
+        <section id="errorState" class="hidden bg-panel border border-red-200 rounded-[28px] shadow-soft p-10 text-center">
+            <h2 class="text-2xl font-bold mb-2 text-red-700">Unable to load market analysis</h2>
+            <p id="errorMessage" class="text-gray-700 max-w-xl mx-auto leading-7">
+                Something went wrong while loading the dashboard.
+            </p>
+        </section>
     </div>
 
-    <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full hidden" id="mainDashboard">
-        
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <div class="lg:col-span-2 flex flex-col gap-8">
-                
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 bg-brandCard p-6 rounded-2xl border border-gray-800">
-                    <div>
-                        <div class="flex items-center gap-3 mb-1">
-                            <h2 class="text-3xl font-bold" id="coinTitle">BTC</h2>
-                            <span class="text-xs bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2 py-1 rounded-md font-semibold tracking-wide" id="aiDirection">UP</span>
-                        </div>
-                        <p class="text-gray-400 text-sm">Current Market Price</p>
-                    </div>
-                    <div class="text-left sm:text-right">
-                        <h3 class="text-4xl font-bold tracking-tight" id="coinPrice">$0.00</h3>
-                        <p class="text-sm font-medium mt-1" id="aiConfidence">AI Confidence: 0%</p>
-                    </div>
-                </div>
-
-                <div class="bg-brandCard p-4 sm:p-6 rounded-2xl border border-gray-800 h-[400px] w-full">
-                    <canvas id="cleanChart"></canvas>
-                </div>
-
-                <div class="bg-indigo-900/20 border border-indigo-500/30 rounded-2xl p-5 flex gap-4 items-start">
-                    <div class="mt-1"><i class="fa-solid fa-robot text-indigo-400 text-xl"></i></div>
-                    <div>
-                        <h4 class="font-bold text-gray-200 mb-1">AI Market Summary</h4>
-                        <p class="text-gray-400 text-sm leading-relaxed" id="aiInsightText">Loading simple analysis...</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex flex-col gap-6">
-                
-                <div class="bg-brandCard rounded-2xl border border-gray-800 p-6">
-                    <h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <i class="fa-solid fa-clock-rotate-left text-gray-500"></i> AI Past 4 Days
-                    </h3>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-[#0b1120] p-4 rounded-xl border border-gray-800/50">
-                            <p class="text-xs text-gray-500 mb-1">Win Rate</p>
-                            <p class="text-xl font-bold" id="btWinRate">0%</p>
-                        </div>
-                        <div class="bg-[#0b1120] p-4 rounded-xl border border-gray-800/50">
-                            <p class="text-xs text-gray-500 mb-1">Profit/Loss</p>
-                            <p class="text-xl font-bold" id="btPnl">0%</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-brandCard rounded-2xl border border-gray-800 p-6">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-shield-halved text-gray-500"></i> Risk Safety
-                        </h3>
-                        <span id="riskBadge" class="text-xs px-2 py-1 rounded font-bold">LOW</span>
-                    </div>
-
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <div class="flex items-center gap-2 info-icon relative cursor-help">
-                                <span class="text-sm text-gray-400 border-b border-dashed border-gray-600">Max Drop</span>
-                                <i class="fa-regular fa-circle-question text-[10px] text-gray-500"></i>
-                                <div class="info-tooltip absolute z-10 w-48 p-2 bg-gray-800 text-xs text-gray-200 rounded shadow-xl -top-10 left-0 border border-gray-700">
-                                    The biggest % the price fell in the last 24 hours. Shows recent panic.
-                                </div>
-                            </div>
-                            <span class="text-sm font-bold text-red-400" id="riskMdd">0%</span>
-                        </div>
-
-                        <div class="flex justify-between items-center">
-                            <div class="flex items-center gap-2 info-icon relative cursor-help">
-                                <span class="text-sm text-gray-400 border-b border-dashed border-gray-600">Expected Risk</span>
-                                <i class="fa-regular fa-circle-question text-[10px] text-gray-500"></i>
-                                <div class="info-tooltip absolute z-10 w-48 p-2 bg-gray-800 text-xs text-gray-200 rounded shadow-xl -top-12 left-0 border border-gray-700">
-                                    Normal maximum daily loss. If you buy now, you likely won't lose more than this %.
-                                </div>
-                            </div>
-                            <span class="text-sm font-bold text-yellow-400" id="riskVar">0%</span>
-                        </div>
-
-                        <div class="flex justify-between items-center">
-                            <div class="flex items-center gap-2 info-icon relative cursor-help">
-                                <span class="text-sm text-gray-400 border-b border-dashed border-gray-600">Reward Ratio</span>
-                                <i class="fa-regular fa-circle-question text-[10px] text-gray-500"></i>
-                                <div class="info-tooltip absolute z-10 w-48 p-2 bg-gray-800 text-xs text-gray-200 rounded shadow-xl -top-10 left-0 border border-gray-700">
-                                    How much you might WIN vs how much you might LOSE. Higher is better.
-                                </div>
-                            </div>
-                            <span class="text-sm font-bold" id="riskRr">0</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-brandCard rounded-2xl border border-gray-800 p-6">
-                    <h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <i class="fa-solid fa-calendar-days text-gray-500"></i> Time Trends
-                    </h3>
-                    <div class="space-y-3">
-                        <div class="flex justify-between items-center bg-[#0b1120] p-3 rounded-lg border border-gray-800/50">
-                            <span class="text-sm text-gray-400">Hours (Short)</span>
-                            <span class="font-bold text-sm" id="mtfShort">-</span>
-                        </div>
-                        <div class="flex justify-between items-center bg-[#0b1120] p-3 rounded-lg border border-gray-800/50">
-                            <span class="text-sm text-gray-400">Days (Medium)</span>
-                            <span class="font-bold text-sm" id="mtfMed">-</span>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </main>
-
     <script>
-        let globalMarketData = {}; 
-        let currentSelectedCoin = 'BTC'; 
-        let activeChart = null; 
+        let analysisData = {};
+        let selectedCoin = null;
+        let priceChart = null;
 
-        async function fetchAndRefreshData(isInitial = false) {
-            try {
-                const res = await fetch("/api/ai-analysis/");
-                const newData = await res.json();
+        function formatPrice(value) {
+            if (value === null || value === undefined || isNaN(value)) return "-";
 
-                if (newData.status === "initializing") {
-                    updateStatusIndicator("AI Training...", "yellow");
-                    return;
+            if (value >= 1000) return `$${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+            if (value >= 1) return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+            return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })}`;
+        }
+
+        function formatPercent(value, digits = 2) {
+            if (value === null || value === undefined || isNaN(value)) return "-";
+            const sign = Number(value) > 0 ? "+" : "";
+            return `${sign}${Number(value).toFixed(digits)}%`;
+        }
+
+        function formatPlain(value, digits = 2) {
+            if (value === null || value === undefined || isNaN(value)) return "-";
+            return Number(value).toFixed(digits);
+        }
+
+        function signalClass(signal) {
+            if (signal === "BUY") return "signal-buy";
+            if (signal === "SELL") return "signal-sell";
+            return "signal-hold";
+        }
+
+        function sentimentClass(label) {
+            if (label === "BULLISH") return "sentiment-bullish";
+            if (label === "BEARISH") return "sentiment-bearish";
+            return "sentiment-neutral";
+        }
+
+        function mtfTone(value) {
+            if (value === "UP") return "text-green-700";
+            if (value === "DOWN") return "text-rose-700";
+            return "text-gray-700";
+        }
+
+        function listToHtml(items, type) {
+            if (!items || !items.length) {
+                return `<li class="flex gap-3"><span class="mt-1 w-2 h-2 rounded-full bg-gray-300"></span><span>No data available.</span></li>`;
+            }
+
+            const marker =
+                type === "bull"
+                    ? "bg-green-500"
+                    : type === "bear"
+                    ? "bg-rose-500"
+                    : "bg-amber-500";
+
+            return items
+                .map(item => `
+                    <li class="flex gap-3">
+                        <span class="mt-2 w-2 h-2 rounded-full ${marker} shrink-0"></span>
+                        <span>${item}</span>
+                    </li>
+                `)
+                .join("");
+        }
+
+        function buildCoinSelector(coins) {
+            const container = document.getElementById("coinSelector");
+            container.innerHTML = "";
+
+            coins.forEach(coin => {
+                const button = document.createElement("button");
+                button.className = `coin-chip px-4 py-2.5 rounded-full border border-line bg-white text-sm font-semibold transition-all whitespace-nowrap hover:border-ink`;
+                button.textContent = coin;
+
+                if (coin === selectedCoin) {
+                    button.classList.add("active");
                 }
 
-                globalMarketData = newData;
-                updateStatusIndicator("System Live", "green");
-                renderCoinSelector();
-                
-                if (isInitial) {
-                    const availableCoins = Object.keys(globalMarketData).filter(c => !globalMarketData[c].error);
-                    if(availableCoins.length > 0) selectCoin(availableCoins[0]);
-                } else {
-                    selectCoin(currentSelectedCoin);
-                }
-            } catch (error) {
-                console.error("Sync Error:", error);
-                updateStatusIndicator("Offline", "red");
-            }
+                button.addEventListener("click", () => {
+                    selectedCoin = coin;
+                    buildCoinSelector(Object.keys(analysisData));
+                    renderCoin(coin);
+                });
+
+                container.appendChild(button);
+            });
         }
 
-        function updateStatusIndicator(text, color) {
-            const el = document.getElementById("statusIndicator");
-            if(color === "green") el.className = "px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-xs font-semibold flex items-center gap-2 border border-green-500/20";
-            else if(color === "yellow") el.className = "px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-400 text-xs font-semibold flex items-center gap-2 border border-yellow-500/20";
-            else el.className = "px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-semibold flex items-center gap-2 border border-red-500/20";
-            el.innerHTML = `<i class="fa-solid ${color==='green'?'fa-check-circle':(color==='red'?'fa-triangle-exclamation':'fa-spinner fa-spin')}"></i> ${text}`;
-        }
+        function renderChart(coin, data) {
+            const ctx = document.getElementById("priceChart").getContext("2d");
+            const chartData = data.chart_data || [];
+            const forecast = data.forecast_next_hours || [];
 
-        function renderCoinSelector() {
-            const selector = document.getElementById("coinSelector");
-            selector.innerHTML = ''; // Clear
-
-            for (const [coin, data] of Object.entries(globalMarketData)) {
-                if (data.error) continue;
-                const isUp = data.direction === "UP";
-                
-                const btnHTML = `
-                    <button id="btn-${coin}" onclick="selectCoin('${coin}')" class="coin-btn flex-shrink-0 bg-brandCard border border-gray-700 hover:border-gray-500 px-5 py-2.5 rounded-full flex items-center gap-3">
-                        <span class="font-bold">${coin}</span>
-                        <span class="${isUp ? 'text-green-400' : 'text-red-400'} text-xs"><i class="fa-solid ${isUp ? 'fa-arrow-up' : 'fa-arrow-down'}"></i></span>
-                    </button>
-                `;
-                selector.insertAdjacentHTML('beforeend', btnHTML);
-            }
-        }
-
-        function selectCoin(coin) {
-            currentSelectedCoin = coin;
-            const data = globalMarketData[coin];
-            if (!data || data.error) return;
-
-            // Highlight active button
-            document.querySelectorAll('.coin-btn').forEach(b => b.classList.remove('active'));
-            const activeBtn = document.getElementById(`btn-${coin}`);
-            if(activeBtn) activeBtn.classList.add('active');
-
-            // Update Header
-            document.getElementById("coinTitle").innerText = coin;
-            document.getElementById("coinPrice").innerText = `$${data.current_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})}`;
-            
-            const dirEl = document.getElementById("aiDirection");
-            dirEl.innerText = data.direction;
-            dirEl.className = `text-xs px-2 py-1 rounded-md font-bold tracking-wide border ${data.direction === 'UP' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`;
-
-            const confEl = document.getElementById("aiConfidence");
-            confEl.innerText = `AI Confidence: ${(data.confidence * 100).toFixed(0)}%`;
-            confEl.className = `text-sm font-medium mt-1 ${data.confidence >= 0.5 ? 'text-green-400' : 'text-yellow-400'}`;
-
-            document.getElementById("aiInsightText").innerText = data.insight;
-
-            // Update Backtest
-            const winEl = document.getElementById("btWinRate");
-            winEl.innerText = `${data.bt_win_rate}%`;
-            winEl.className = `text-xl font-bold ${data.bt_win_rate >= 50 ? 'text-green-400' : 'text-red-400'}`;
-            
-            const pnlEl = document.getElementById("btPnl");
-            pnlEl.innerText = `${data.bt_pnl > 0 ? '+' : ''}${data.bt_pnl}%`;
-            pnlEl.className = `text-xl font-bold ${data.bt_pnl >= 0 ? 'text-green-400' : 'text-red-400'}`;
-
-            // Update Risk
-            const badge = document.getElementById("riskBadge");
-            badge.innerText = data.risk_level;
-            badge.className = `text-[10px] px-2 py-1 rounded font-bold border ${data.risk_level === 'HIGH RISK' ? 'bg-red-500/20 text-red-400 border-red-500/30' : (data.risk_level === 'MEDIUM RISK' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : 'bg-green-500/20 text-green-400 border-green-500/30')}`;
-            
-            document.getElementById("riskMdd").innerText = `-${data.max_drawdown}%`;
-            document.getElementById("riskVar").innerText = `${data.value_at_risk}%`;
-            const rrEl = document.getElementById("riskRr");
-            rrEl.innerText = data.risk_reward;
-            rrEl.className = `text-sm font-bold ${data.risk_reward > 2.0 ? 'text-green-400' : (data.risk_reward > 1.0 ? 'text-yellow-400' : 'text-red-400')}`;
-
-            // Update Timeframes
-            const setMtf = (id, val) => {
-                const el = document.getElementById(id);
-                el.innerHTML = val === 'UP' ? '<span class="text-green-400">UP <i class="fa-solid fa-arrow-up text-xs ml-1"></i></span>' : '<span class="text-red-400">DOWN <i class="fa-solid fa-arrow-down text-xs ml-1"></i></span>';
-            };
-            setMtf("mtfShort", data.mtf_short);
-            setMtf("mtfMed", data.mtf_med);
-
-            renderCleanChart(coin, data);
-        }
-
-        function renderCleanChart(coin, data) {
-            const ctx = document.getElementById("cleanChart").getContext('2d');
-            
-            
-            if (activeChart) { activeChart.destroy(); }
-
-            
-            const historyPoints = data.chart_data.slice(-24); 
-            let labels = historyPoints.map((_, i) => `Past ${24-i}h`);
-            let prices = historyPoints.map(d => d.close);
-            
-            data.forecast_next_hours.forEach((pred, i) => {
-                labels.push(`AI +${i+1}h`);
-                prices.push(pred);
+            const labels = chartData.map(item => {
+                const d = new Date(item.time * 1000);
+                return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
             });
 
-            
-            const isUp = data.direction === "UP";
-            
-            const lineColor = isUp ? 'rgba(34, 197, 94, 1)' : 'rgba(239, 68, 68, 1)'; 
-            
-            
-            let gradient = ctx.createLinearGradient(0, 0, 0, 350);
-            if (isUp) {
-                gradient.addColorStop(0, 'rgba(34, 197, 94, 0.4)');
-                gradient.addColorStop(1, 'rgba(34, 197, 94, 0.02)');
-            } else {
-                gradient.addColorStop(0, 'rgba(239, 68, 68, 0.4)'); 
-                gradient.addColorStop(1, 'rgba(239, 68, 68, 0.02)');
+            const closeValues = chartData.map(item => item.close);
+
+            const forecastLabels = [...labels];
+            for (let i = 1; i <= forecast.length; i++) {
+                forecastLabels.push(`F+${i}`);
             }
 
-            activeChart = new Chart(ctx, {
-                type: 'line',
+            const historySeries = [...closeValues];
+            while (historySeries.length < forecastLabels.length) {
+                historySeries.push(null);
+            }
+
+            const forecastSeries = new Array(closeValues.length - 1).fill(null)
+                .concat(closeValues.length ? [closeValues[closeValues.length - 1]] : [null])
+                .concat(forecast);
+
+            if (priceChart) {
+                priceChart.destroy();
+            }
+
+            priceChart = new Chart(ctx, {
+                type: "line",
                 data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Price',
-                        data: prices,
-                        borderColor: lineColor,
-                        borderWidth: 3,
-                        pointRadius: 0, 
-                        pointHoverRadius: 6,
-                        pointBackgroundColor: '#ffffff',
-                        fill: true, 
-                        backgroundColor: gradient,
-                        tension: 0.3, 
-                        segment: {
-                            
-                            borderDash: ctx => ctx.p0DataIndex >= 23 ? [6, 4] : undefined,
+                    labels: forecastLabels,
+                    datasets: [
+                        {
+                            label: `${coin} Price`,
+                            data: historySeries,
+                            borderColor: "#111827",
+                            backgroundColor: "rgba(17, 24, 39, 0.05)",
+                            borderWidth: 2.2,
+                            pointRadius: 0,
+                            tension: 0.35,
+                            fill: false
+                        },
+                        {
+                            label: "AI Forecast",
+                            data: forecastSeries,
+                            borderColor: "#16a34a",
+                            backgroundColor: "rgba(22, 163, 74, 0.08)",
+                            borderWidth: 2.2,
+                            pointRadius: 0,
+                            borderDash: [7, 7],
+                            tension: 0.35,
+                            fill: false
                         }
-                    }]
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
+                    interaction: {
+                        mode: "index",
+                        intersect: false
+                    },
                     plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: '#1e293b', 
-                            titleColor: '#94a3b8', 
-                            bodyColor: '#f8fafc',
-                            padding: 12, 
-                            cornerRadius: 8, 
-                            borderColor: '#334155', 
-                            borderWidth: 1,
-                            callbacks: { 
-                                label: function(context) { 
-                                    return `$${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2})}`; 
-                                } 
+                        legend: {
+                            position: "top",
+                            labels: {
+                                color: "#374151",
+                                usePointStyle: true,
+                                boxWidth: 10,
+                                font: {
+                                    size: 12,
+                                    weight: "600"
+                                }
                             }
+                        },
+                        tooltip: {
+                            backgroundColor: "#111827",
+                            titleColor: "#ffffff",
+                            bodyColor: "#ffffff",
+                            displayColors: false
                         }
                     },
                     scales: {
-                        x: { display: false }, 
-                        y: { 
-                            position: 'right', 
-                            grid: { color: '#1e293b', drawBorder: false }, 
-                            ticks: { 
-                                color: '#64748b', 
-                                padding: 10,
-                                font: { family: 'Monospace' } 
-                            } 
+                        x: {
+                            grid: {
+                                color: "rgba(229, 231, 235, 0.7)"
+                            },
+                            ticks: {
+                                color: "#6b7280",
+                                maxTicksLimit: 12
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: "rgba(229, 231, 235, 0.7)"
+                            },
+                            ticks: {
+                                color: "#6b7280",
+                                callback: function(value) {
+                                    return formatPrice(value);
+                                }
+                            }
                         }
                     }
                 }
             });
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            fetchAndRefreshData(true);
-            setInterval(() => fetchAndRefreshData(false), 60000); 
-            document.getElementById("mainDashboard").classList.remove("hidden");
-        });
+        function renderNewsArticles(articles) {
+            const container = document.getElementById("newsArticles");
+            container.innerHTML = "";
+
+            if (!articles || !articles.length) {
+                container.innerHTML = `
+                    <div class="rounded-3xl border border-line bg-shell p-5">
+                        <p class="text-sm text-gray-600">No relevant articles were available for this asset in the current cycle.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            articles.slice(0, 3).forEach(article => {
+                const badgeClass = sentimentClass(article.sentiment_label || "NEUTRAL");
+
+                const card = document.createElement("article");
+                card.className = "rounded-3xl border border-line bg-white p-5";
+
+                card.innerHTML = `
+                    <div class="flex flex-wrap items-center gap-3 mb-3">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeClass}">
+                            ${article.sentiment_label || "NEUTRAL"}
+                        </span>
+                        <span class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+                            ${article.source || "Unknown Source"}
+                        </span>
+                        <span class="text-xs text-gray-500">
+                            Score: ${formatPlain(article.sentiment_score || 0, 3)}
+                        </span>
+                    </div>
+
+                    <h4 class="text-base font-bold text-gray-900 leading-7 mb-2">
+                        ${article.title || "Untitled article"}
+                    </h4>
+
+                    <p class="text-sm text-gray-600 leading-6 mb-4">
+                        ${article.summary || "No article summary was provided."}
+                    </p>
+
+                    <a
+                        href="${article.link || '#'}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center gap-2 text-sm font-semibold text-ink hover:underline"
+                    >
+                        Read source
+                        <span aria-hidden="true">↗</span>
+                    </a>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function renderCoin(coin) {
+            const data = analysisData[coin];
+            if (!data) return;
+
+            document.getElementById("heroCoin").textContent = coin;
+            document.getElementById("heroPrice").textContent = formatPrice(data.current_price);
+            document.getElementById("heroConfidence").textContent = `${Math.round((data.confidence || 0) * 100)}%`;
+            document.getElementById("heroSummary").textContent = data.ai_summary || data.insight || "No AI summary available.";
+
+            const signalEl = document.getElementById("heroSignal");
+            signalEl.textContent = data.signal || "HOLD";
+            signalEl.className = `px-3 py-1.5 rounded-full border text-sm font-bold uppercase tracking-wide ${signalClass(data.signal || "HOLD")}`;
+
+            document.getElementById("heroRegime").textContent = data.market_regime || "Transitional";
+            document.getElementById("heroRiskPosture").textContent = data.risk_posture || data.risk_level || "LOW";
+
+            const newsLabel = data.news_context?.sentiment_label || "NEUTRAL";
+            document.getElementById("heroNewsLabel").textContent = newsLabel;
+            document.getElementById("heroArticleCount").textContent = data.news_context?.article_count ?? 0;
+
+            document.getElementById("bullCase").textContent = formatPercent(data.scenario_analysis?.bull_case ?? 0);
+            document.getElementById("baseCase").textContent = formatPercent(data.scenario_analysis?.base_case ?? 0);
+            document.getElementById("bearCase").textContent = formatPercent(data.scenario_analysis?.bear_case ?? 0);
+
+            document.getElementById("riskMdd").textContent = formatPercent(data.max_drawdown ?? 0);
+            document.getElementById("riskVar").textContent = formatPercent(data.value_at_risk ?? 0);
+            document.getElementById("riskReward").textContent = formatPlain(data.risk_reward ?? 0, 2);
+            document.getElementById("volatilityValue").textContent = formatPlain(data.volatility ?? 0, 4);
+
+            document.getElementById("btWinRate").textContent = formatPercent(data.bt_win_rate ?? 0, 1);
+            document.getElementById("btPnl").textContent = formatPercent(data.bt_pnl ?? 0, 2);
+            document.getElementById("btTrades").textContent = data.bt_trades ?? 0;
+
+            document.getElementById("mtfShort").textContent = data.mtf_short || "-";
+            document.getElementById("mtfShort").className = `text-sm font-bold ${mtfTone(data.mtf_short)}`;
+
+            document.getElementById("mtfMed").textContent = data.mtf_med || "-";
+            document.getElementById("mtfMed").className = `text-sm font-bold ${mtfTone(data.mtf_med)}`;
+
+            document.getElementById("mtfLong").textContent = data.mtf_long || "-";
+            document.getElementById("mtfLong").className = `text-sm font-bold ${mtfTone(data.mtf_long)}`;
+
+            document.getElementById("bullishFactors").innerHTML = listToHtml(data.bullish_factors || [], "bull");
+            document.getElementById("bearishFactors").innerHTML = listToHtml(data.bearish_factors || [], "bear");
+            document.getElementById("watchpoints").innerHTML = listToHtml(data.watchpoints || [], "watch");
+
+            const newsSummary = data.news_context?.summary || "No current news summary is available.";
+            document.getElementById("newsSummary").textContent = newsSummary;
+
+            const newsBadge = document.getElementById("newsLabelBadge");
+            newsBadge.textContent = newsLabel;
+            newsBadge.className = `px-3 py-1.5 rounded-full text-sm font-bold ${sentimentClass(newsLabel)}`;
+
+            renderNewsArticles(data.news_context?.top_articles || []);
+
+            document.getElementById("techRsi").textContent = formatPlain(data.technical_context?.rsi ?? 0, 2);
+            document.getElementById("techAtr").textContent = formatPlain(data.technical_context?.atr ?? 0, 2);
+            document.getElementById("techMacd").textContent = formatPlain(data.technical_context?.macd ?? 0, 2);
+            document.getElementById("techMacdSignal").textContent = formatPlain(data.technical_context?.macd_signal ?? 0, 2);
+            document.getElementById("techEma20").textContent = formatPlain(data.technical_context?.ema20 ?? 0, 2);
+            document.getElementById("techSma20").textContent = formatPlain(data.technical_context?.sma20 ?? 0, 2);
+
+            renderChart(coin, data);
+        }
+
+        async function loadAnalysis() {
+            try {
+                const response = await fetch("/api/ai-analysis/");
+                const statusEl = document.getElementById("connectionStatus");
+
+                if (response.status === 202) {
+                    statusEl.textContent = "Analysis is warming up";
+                    statusEl.className = "px-3 py-2 rounded-full border border-amber-200 bg-amber-50 text-sm font-medium text-amber-800";
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch analysis data.");
+                }
+
+                const data = await response.json();
+
+                analysisData = data;
+                const coins = Object.keys(analysisData);
+
+                if (!coins.length) {
+                    throw new Error("No coin analysis was returned.");
+                }
+
+                if (!selectedCoin || !analysisData[selectedCoin]) {
+                    selectedCoin = coins[0];
+                }
+
+                buildCoinSelector(coins);
+                renderCoin(selectedCoin);
+
+                document.getElementById("loadingState").classList.add("hidden");
+                document.getElementById("errorState").classList.add("hidden");
+                document.getElementById("dashboardContent").classList.remove("hidden");
+
+                statusEl.textContent = "Live analysis ready";
+                statusEl.className = "px-3 py-2 rounded-full border border-green-200 bg-green-50 text-sm font-medium text-green-800";
+            } catch (error) {
+                document.getElementById("loadingState").classList.add("hidden");
+                document.getElementById("dashboardContent").classList.add("hidden");
+                document.getElementById("errorState").classList.remove("hidden");
+                document.getElementById("errorMessage").textContent = error.message || "Something went wrong while loading analysis data.";
+
+                const statusEl = document.getElementById("connectionStatus");
+                statusEl.textContent = "Connection issue";
+                statusEl.className = "px-3 py-2 rounded-full border border-red-200 bg-red-50 text-sm font-medium text-red-800";
+            }
+        }
+
+        loadAnalysis();
+        setInterval(loadAnalysis, 60000);
     </script>
 </body>
 </html>
