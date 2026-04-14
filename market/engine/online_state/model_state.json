@@ -1,0 +1,9 @@
+{
+  "last_full_refresh_at": null,
+  "last_fast_update_at": "2026-04-13T05:21:19.018831+00:00",
+  "last_drift_check_at": "2026-04-13T05:21:19.018831+00:00",
+  "candidate_direction_model_ready": false,
+  "candidate_setup_model_ready": false,
+  "production_direction_model": "direction_model_v2",
+  "production_setup_model": "setup_quality_model_v2"
+}

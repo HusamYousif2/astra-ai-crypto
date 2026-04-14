@@ -1,0 +1,34 @@
+{
+  "coin": "BTC",
+  "forecast_horizon": 6,
+  "feature_columns": [
+    "close",
+    "rsi",
+    "macd",
+    "macd_signal",
+    "sma_20",
+    "ema_20",
+    "volume_mean",
+    "bb_high",
+    "bb_low",
+    "atr",
+    "macd_hist",
+    "price_vs_sma20",
+    "price_vs_ema20",
+    "bb_width",
+    "volume_ratio",
+    "candle_body_pct",
+    "range_pct",
+    "momentum_3h",
+    "momentum_6h",
+    "volatility_6h"
+  ],
+  "training_rows": 124,
+  "validation_rows": 31,
+  "metrics": {
+    "direction_accuracy": 0.3871,
+    "return_mae": 2.3796,
+    "return_rmse": 2.6322,
+    "return_direction_accuracy": 0.3226
+  }
+}

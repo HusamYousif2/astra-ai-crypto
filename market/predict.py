@@ -7,6 +7,7 @@ logging.getLogger("absl").setLevel(logging.ERROR)
 
 import joblib
 import numpy as np
+
 from .features import add_indicators
 from .lstm_model import SEQ_LENGTH, create_sequences, get_model_paths
 from .nlp_engine import analyze_coin_sentiment
@@ -158,6 +159,38 @@ def classify_market_regime(current_price, sma20, ema20, rsi, macd, macd_signal, 
     return "Transitional"
 
 
+def classify_signal_strength(score):
+    """
+    Convert the internal score into a user-friendly strength label.
+    """
+    edge = abs(score)
+
+    if edge >= 4.0:
+        return "Strong"
+    if edge >= 2.25:
+        return "Moderate"
+    return "Weak"
+
+
+def determine_trade_stance(signal, signal_strength, risk_posture, expected_move_pct):
+    """
+    Convert signal quality into a practical action stance.
+    """
+    if signal == "HOLD":
+        return "No Trade"
+
+    if signal_strength == "Weak":
+        return "Watch Closely"
+
+    if risk_posture == "HIGH":
+        return "Watch Closely"
+
+    if abs(expected_move_pct) < 0.5:
+        return "Watch Closely"
+
+    return "Trade Candidate"
+
+
 def build_professional_signal(current_price, preds, nlp_result, indicators, advanced_risk):
     """
     Build a more professional decision layer with clear rationale.
@@ -259,20 +292,44 @@ def build_professional_signal(current_price, preds, nlp_result, indicators, adva
     else:
         risk_posture = "LOW"
 
+    signal_strength = classify_signal_strength(score)
+    trade_stance = determine_trade_stance(
+        signal=signal,
+        signal_strength=signal_strength,
+        risk_posture=risk_posture,
+        expected_move_pct=expected_move_pct,
+    )
+
+    setup_score = round(float(max(min(((score + 6) / 12) * 100, 100), 0)), 1)
+
+    confidence_explainer = (
+        "This value reflects the strength and clarity of the current trading setup. "
+        "It does not describe the accuracy of the current market price."
+    )
+
     if signal == "BUY":
         ai_summary = (
             "Market structure is constructive. The model, momentum, and trend context support a bullish bias, "
             "but execution should still respect current risk conditions."
+        )
+        signal_explainer = (
+            "The AI currently sees a bullish setup with enough supporting factors to justify a positive bias."
         )
     elif signal == "SELL":
         ai_summary = (
             "Market structure is fragile. The model and momentum context favor downside risk, "
             "so defensive positioning is more appropriate at this stage."
         )
+        signal_explainer = (
+            "The AI currently sees a bearish setup with enough negative pressure to justify a defensive stance."
+        )
     else:
         ai_summary = (
             "The market does not show a clean directional edge right now. The setup looks mixed, "
             "so patience is more appropriate than aggressive positioning."
+        )
+        signal_explainer = (
+            "The AI sees mixed evidence. This is not a clean trade setup right now."
         )
 
     if not bullish_factors:
@@ -294,7 +351,12 @@ def build_professional_signal(current_price, preds, nlp_result, indicators, adva
         "signal": signal,
         "direction": direction,
         "confidence": round(float(confidence), 3),
+        "signal_strength": signal_strength,
+        "trade_stance": trade_stance,
+        "setup_score": setup_score,
         "risk_posture": risk_posture,
+        "confidence_explainer": confidence_explainer,
+        "signal_explainer": signal_explainer,
         "ai_summary": ai_summary,
         "bullish_factors": bullish_factors[:4],
         "bearish_factors": bearish_factors[:4],
@@ -337,7 +399,13 @@ def predict_coin(df, coin):
     try:
         nlp_result = analyze_coin_sentiment(coin)
     except Exception:
-        nlp_result = {"score": 0.0, "label": "NEUTRAL", "article_count": 0}
+        nlp_result = {
+            "score": 0.0,
+            "label": "NEUTRAL",
+            "article_count": 0,
+            "summary": f"No meaningful recent news was detected for {coin.upper()}.",
+            "articles": [],
+        }
 
     current_indicators = {
         "rsi": float(coin_df["rsi"].iloc[-1]),
@@ -404,11 +472,11 @@ def predict_coin(df, coin):
     }
 
     news_context = {
-    "sentiment_score": nlp_result["score"],
-    "sentiment_label": nlp_result["label"],
-    "article_count": nlp_result["article_count"],
-    "summary": nlp_result.get("summary", ""),
-    "top_articles": nlp_result.get("articles", []),
+        "sentiment_score": nlp_result["score"],
+        "sentiment_label": nlp_result["label"],
+        "article_count": nlp_result["article_count"],
+        "summary": nlp_result.get("summary", ""),
+        "top_articles": nlp_result.get("articles", []),
     }
 
     return {
@@ -435,8 +503,13 @@ def predict_coin(df, coin):
 
         # New professional fields
         "signal": professional_decision["signal"],
+        "signal_strength": professional_decision["signal_strength"],
+        "trade_stance": professional_decision["trade_stance"],
+        "setup_score": professional_decision["setup_score"],
         "market_regime": market_regime,
         "risk_posture": professional_decision["risk_posture"],
+        "confidence_explainer": professional_decision["confidence_explainer"],
+        "signal_explainer": professional_decision["signal_explainer"],
         "ai_summary": professional_decision["ai_summary"],
         "bullish_factors": professional_decision["bullish_factors"],
         "bearish_factors": professional_decision["bearish_factors"],

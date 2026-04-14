@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,6 +8,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -42,72 +44,7 @@
         };
     </script>
 
-    <style>
-        body {
-            background:
-                radial-gradient(circle at top left, rgba(34, 197, 94, 0.06), transparent 28%),
-                radial-gradient(circle at top right, rgba(59, 130, 246, 0.05), transparent 22%),
-                #f5f7f4;
-        }
-
-        .glass-strip {
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.75);
-        }
-
-        .coin-chip.active {
-            background: #111827;
-            color: white;
-            border-color: #111827;
-        }
-
-        .signal-buy {
-            background: #dcfce7;
-            color: #166534;
-            border-color: #bbf7d0;
-        }
-
-        .signal-sell {
-            background: #ffe4e6;
-            color: #be123c;
-            border-color: #fecdd3;
-        }
-
-        .signal-hold {
-            background: #fef3c7;
-            color: #92400e;
-            border-color: #fde68a;
-        }
-
-        .sentiment-bullish {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .sentiment-bearish {
-            background: #ffe4e6;
-            color: #be123c;
-        }
-
-        .sentiment-neutral {
-            background: #e5e7eb;
-            color: #374151;
-        }
-
-        .thin-scrollbar::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        .thin-scrollbar::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 999px;
-        }
-
-        .thin-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 </head>
 <body class="font-sans text-ink min-h-screen">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -138,7 +75,7 @@
 
                 <div>
                     <p class="text-sm text-gray-600 max-w-3xl leading-6">
-                        A clear AI view of market direction, risk, and news context. Built to be useful for both active traders and decision-makers who need fast, readable insight.
+                        A clear AI view of market direction, setup quality, risk, and news context. Designed to stay readable for beginners while still useful for more advanced crypto decision-making.
                     </p>
                 </div>
 
@@ -148,94 +85,126 @@
 
         <main id="dashboardContent" class="hidden space-y-6">
             <section class="grid grid-cols-1 xl:grid-cols-12 gap-6">
-                <div class="xl:col-span-8 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
-                    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
-                        <div class="space-y-4">
-                            <div class="flex flex-wrap items-center gap-3">
-                                <h2 id="heroCoin" class="text-4xl sm:text-5xl font-extrabold tracking-tight">BTC</h2>
-                                <span id="heroSignal" class="px-3 py-1.5 rounded-full border text-sm font-bold uppercase tracking-wide">
-                                    HOLD
-                                </span>
-                                <span id="heroRegime" class="px-3 py-1.5 rounded-full bg-slateSoft text-slateText text-sm font-semibold">
-                                    Market Regime
-                                </span>
-                            </div>
+    <div class="xl:col-span-8 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
+        <div class="flex flex-col gap-6">
+            <div class="flex flex-wrap items-center gap-3">
+                <h2 id="heroCoin" class="text-4xl sm:text-5xl font-extrabold tracking-tight">BTC</h2>
+                <span id="heroSignal" class="px-3 py-1.5 rounded-full border text-sm font-bold uppercase tracking-wide">
+                    HOLD
+                </span>
+                <span id="heroRegime" class="px-3 py-1.5 rounded-full bg-slateSoft text-slateText text-sm font-semibold">
+                    Market Regime
+                </span>
+            </div>
 
-                            <div>
-                                <p class="text-sm text-gray-500 mb-1">Current Price</p>
-                                <div class="flex items-end gap-4">
-                                    <h3 id="heroPrice" class="text-4xl sm:text-5xl font-extrabold">$0.00</h3>
-                                    <div class="pb-2">
-                                        <p class="text-sm text-gray-500">Confidence</p>
-                                        <p id="heroConfidence" class="text-lg font-bold">0%</p>
-                                    </div>
-                                </div>
-                            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <div class="space-y-5">
+                    <div>
+                        <p class="text-sm text-gray-500 mb-1">Current Price</p>
+                        <h3 id="heroPrice" class="text-4xl sm:text-5xl font-extrabold">$0.00</h3>
+                    </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div class="rounded-2xl border border-line bg-shell px-4 py-4">
-                                    <p class="text-sm text-gray-500 mb-1">Risk Posture</p>
-                                    <p id="heroRiskPosture" class="text-lg font-bold">LOW</p>
-                                </div>
-                                <div class="rounded-2xl border border-line bg-shell px-4 py-4">
-                                    <p class="text-sm text-gray-500 mb-1">News Sentiment</p>
-                                    <p id="heroNewsLabel" class="text-lg font-bold">NEUTRAL</p>
-                                </div>
-                                <div class="rounded-2xl border border-line bg-shell px-4 py-4">
-                                    <p class="text-sm text-gray-500 mb-1">Articles Found</p>
-                                    <p id="heroArticleCount" class="text-lg font-bold">0</p>
-                                </div>
-                            </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                            <p class="text-sm text-gray-500 mb-1">Setup Score</p>
+                            <p id="heroSetupScore" class="text-2xl font-extrabold">0 / 100</p>
+                            <p id="heroScoreHintShort" class="text-xs text-gray-500 mt-2">
+                                Measures setup quality, not price certainty.
+                            </p>
                         </div>
 
-                        <div class="lg:max-w-sm w-full rounded-3xl border border-line bg-shell p-5">
-                            <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">AI Summary</p>
-                            <p id="heroSummary" class="text-[15px] leading-7 text-gray-700">
-                                Loading current market assessment...
-                            </p>
+                        <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                            <p class="text-sm text-gray-500 mb-1">Signal Strength</p>
+                            <p id="heroSignalStrength" class="text-xl font-bold">Weak</p>
+                        </div>
+
+                        <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                            <p class="text-sm text-gray-500 mb-1">Trade Stance</p>
+                            <p id="heroTradeStance" class="text-xl font-bold">No Trade</p>
+                        </div>
+
+                        <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                            <p class="text-sm text-gray-500 mb-1">Risk Level</p>
+                            <p id="heroRiskPosture" class="text-xl font-bold">LOW</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">News Impact</p>
+                                <p id="heroNewsImpact" class="text-xl font-bold">NEUTRAL</p>
+                            </div>
+                            <p id="heroNewsMeta" class="text-sm text-gray-500 mt-1">0 article(s)</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="xl:col-span-4 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
-                    <div class="flex items-center justify-between mb-5">
-                        <div>
-                            <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold">Scenario View</p>
-                            <h3 class="text-xl font-bold mt-1">Expected Move Range</h3>
-                        </div>
+                <div class="rounded-3xl border border-line bg-shell p-5 space-y-5 h-full">
+                    <div>
+                        <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">AI Summary</p>
+                        <p id="heroSummary" class="text-[15px] leading-7 text-gray-700">
+                            Loading current market assessment...
+                        </p>
                     </div>
 
-                    <div class="space-y-3">
-                        <div class="rounded-2xl border border-line p-4 bg-shell">
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-500">Bull Case</span>
-                                <span id="bullCase" class="text-lg font-bold text-green-700">0%</span>
-                            </div>
-                        </div>
-
-                        <div class="rounded-2xl border border-line p-4 bg-shell">
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-500">Base Case</span>
-                                <span id="baseCase" class="text-lg font-bold text-indigo-700">0%</span>
-                            </div>
-                        </div>
-
-                        <div class="rounded-2xl border border-line p-4 bg-shell">
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-500">Bear Case</span>
-                                <span id="bearCase" class="text-lg font-bold text-rose-700">0%</span>
-                            </div>
-                        </div>
+                    <div class="pt-4 border-t border-line">
+                        <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">What This Means</p>
+                        <p id="heroSignalExplainer" class="text-[15px] leading-7 text-gray-700">
+                            The AI is preparing a readable explanation of the current setup.
+                        </p>
                     </div>
 
-                    <div class="mt-6 rounded-3xl border border-line bg-white p-4">
-                        <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">Guidance</p>
-                        <p class="text-sm leading-6 text-gray-600">
-                            Use this range as a planning tool, not a guarantee. The base case is the AI’s most likely path. The bull and bear cases help frame upside and downside risk.
+                    <div class="pt-4 border-t border-line">
+                        <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">Score Note</p>
+                        <p id="heroScoreHint" class="text-sm leading-6 text-gray-600">
+                            This score reflects the strength of the setup, not certainty about the current market price.
                         </p>
                     </div>
                 </div>
-            </section>
+            </div>
+        </div>
+    </div>
+
+    <div class="xl:col-span-4 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
+        <div class="flex items-center justify-between mb-5">
+            <div>
+                <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold">Scenario View</p>
+                <h3 class="text-xl font-bold mt-1">Expected Move Range</h3>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <div class="rounded-2xl border border-line p-4 bg-shell">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-500">Bull Case</span>
+                    <span id="bullCase" class="text-lg font-bold text-green-700">0%</span>
+                </div>
+            </div>
+
+            <div class="rounded-2xl border border-line p-4 bg-shell">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-500">Base Case</span>
+                    <span id="baseCase" class="text-lg font-bold text-indigo-700">0%</span>
+                </div>
+            </div>
+
+            <div class="rounded-2xl border border-line p-4 bg-shell">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-500">Bear Case</span>
+                    <span id="bearCase" class="text-lg font-bold text-rose-700">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 rounded-3xl border border-line bg-white p-4">
+            <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">Guidance</p>
+            <p class="text-sm leading-6 text-gray-600">
+                Use this range as a planning tool, not a guarantee. The base case is the AI’s most likely path. The bull and bear cases help frame upside and downside risk.
+            </p>
+        </div>
+    </div>
+</section>
 
             <section class="grid grid-cols-1 xl:grid-cols-12 gap-6">
                 <div class="xl:col-span-8 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
@@ -251,7 +220,7 @@
                 </div>
 
                 <div class="xl:col-span-4 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
-                    <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-4">Risk and Quality</p>
+                    <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-4">Risk and Validation</p>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div class="rounded-2xl border border-line bg-shell p-4">
@@ -401,375 +370,6 @@
         </section>
     </div>
 
-    <script>
-        let analysisData = {};
-        let selectedCoin = null;
-        let priceChart = null;
-
-        function formatPrice(value) {
-            if (value === null || value === undefined || isNaN(value)) return "-";
-
-            if (value >= 1000) return `$${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-            if (value >= 1) return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
-            return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })}`;
-        }
-
-        function formatPercent(value, digits = 2) {
-            if (value === null || value === undefined || isNaN(value)) return "-";
-            const sign = Number(value) > 0 ? "+" : "";
-            return `${sign}${Number(value).toFixed(digits)}%`;
-        }
-
-        function formatPlain(value, digits = 2) {
-            if (value === null || value === undefined || isNaN(value)) return "-";
-            return Number(value).toFixed(digits);
-        }
-
-        function signalClass(signal) {
-            if (signal === "BUY") return "signal-buy";
-            if (signal === "SELL") return "signal-sell";
-            return "signal-hold";
-        }
-
-        function sentimentClass(label) {
-            if (label === "BULLISH") return "sentiment-bullish";
-            if (label === "BEARISH") return "sentiment-bearish";
-            return "sentiment-neutral";
-        }
-
-        function mtfTone(value) {
-            if (value === "UP") return "text-green-700";
-            if (value === "DOWN") return "text-rose-700";
-            return "text-gray-700";
-        }
-
-        function listToHtml(items, type) {
-            if (!items || !items.length) {
-                return `<li class="flex gap-3"><span class="mt-1 w-2 h-2 rounded-full bg-gray-300"></span><span>No data available.</span></li>`;
-            }
-
-            const marker =
-                type === "bull"
-                    ? "bg-green-500"
-                    : type === "bear"
-                    ? "bg-rose-500"
-                    : "bg-amber-500";
-
-            return items
-                .map(item => `
-                    <li class="flex gap-3">
-                        <span class="mt-2 w-2 h-2 rounded-full ${marker} shrink-0"></span>
-                        <span>${item}</span>
-                    </li>
-                `)
-                .join("");
-        }
-
-        function buildCoinSelector(coins) {
-            const container = document.getElementById("coinSelector");
-            container.innerHTML = "";
-
-            coins.forEach(coin => {
-                const button = document.createElement("button");
-                button.className = `coin-chip px-4 py-2.5 rounded-full border border-line bg-white text-sm font-semibold transition-all whitespace-nowrap hover:border-ink`;
-                button.textContent = coin;
-
-                if (coin === selectedCoin) {
-                    button.classList.add("active");
-                }
-
-                button.addEventListener("click", () => {
-                    selectedCoin = coin;
-                    buildCoinSelector(Object.keys(analysisData));
-                    renderCoin(coin);
-                });
-
-                container.appendChild(button);
-            });
-        }
-
-        function renderChart(coin, data) {
-            const ctx = document.getElementById("priceChart").getContext("2d");
-            const chartData = data.chart_data || [];
-            const forecast = data.forecast_next_hours || [];
-
-            const labels = chartData.map(item => {
-                const d = new Date(item.time * 1000);
-                return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-            });
-
-            const closeValues = chartData.map(item => item.close);
-
-            const forecastLabels = [...labels];
-            for (let i = 1; i <= forecast.length; i++) {
-                forecastLabels.push(`F+${i}`);
-            }
-
-            const historySeries = [...closeValues];
-            while (historySeries.length < forecastLabels.length) {
-                historySeries.push(null);
-            }
-
-            const forecastSeries = new Array(closeValues.length - 1).fill(null)
-                .concat(closeValues.length ? [closeValues[closeValues.length - 1]] : [null])
-                .concat(forecast);
-
-            if (priceChart) {
-                priceChart.destroy();
-            }
-
-            priceChart = new Chart(ctx, {
-                type: "line",
-                data: {
-                    labels: forecastLabels,
-                    datasets: [
-                        {
-                            label: `${coin} Price`,
-                            data: historySeries,
-                            borderColor: "#111827",
-                            backgroundColor: "rgba(17, 24, 39, 0.05)",
-                            borderWidth: 2.2,
-                            pointRadius: 0,
-                            tension: 0.35,
-                            fill: false
-                        },
-                        {
-                            label: "AI Forecast",
-                            data: forecastSeries,
-                            borderColor: "#16a34a",
-                            backgroundColor: "rgba(22, 163, 74, 0.08)",
-                            borderWidth: 2.2,
-                            pointRadius: 0,
-                            borderDash: [7, 7],
-                            tension: 0.35,
-                            fill: false
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: "index",
-                        intersect: false
-                    },
-                    plugins: {
-                        legend: {
-                            position: "top",
-                            labels: {
-                                color: "#374151",
-                                usePointStyle: true,
-                                boxWidth: 10,
-                                font: {
-                                    size: 12,
-                                    weight: "600"
-                                }
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: "#111827",
-                            titleColor: "#ffffff",
-                            bodyColor: "#ffffff",
-                            displayColors: false
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: {
-                                color: "rgba(229, 231, 235, 0.7)"
-                            },
-                            ticks: {
-                                color: "#6b7280",
-                                maxTicksLimit: 12
-                            }
-                        },
-                        y: {
-                            grid: {
-                                color: "rgba(229, 231, 235, 0.7)"
-                            },
-                            ticks: {
-                                color: "#6b7280",
-                                callback: function(value) {
-                                    return formatPrice(value);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function renderNewsArticles(articles) {
-            const container = document.getElementById("newsArticles");
-            container.innerHTML = "";
-
-            if (!articles || !articles.length) {
-                container.innerHTML = `
-                    <div class="rounded-3xl border border-line bg-shell p-5">
-                        <p class="text-sm text-gray-600">No relevant articles were available for this asset in the current cycle.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            articles.slice(0, 3).forEach(article => {
-                const badgeClass = sentimentClass(article.sentiment_label || "NEUTRAL");
-
-                const card = document.createElement("article");
-                card.className = "rounded-3xl border border-line bg-white p-5";
-
-                card.innerHTML = `
-                    <div class="flex flex-wrap items-center gap-3 mb-3">
-                        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeClass}">
-                            ${article.sentiment_label || "NEUTRAL"}
-                        </span>
-                        <span class="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                            ${article.source || "Unknown Source"}
-                        </span>
-                        <span class="text-xs text-gray-500">
-                            Score: ${formatPlain(article.sentiment_score || 0, 3)}
-                        </span>
-                    </div>
-
-                    <h4 class="text-base font-bold text-gray-900 leading-7 mb-2">
-                        ${article.title || "Untitled article"}
-                    </h4>
-
-                    <p class="text-sm text-gray-600 leading-6 mb-4">
-                        ${article.summary || "No article summary was provided."}
-                    </p>
-
-                    <a
-                        href="${article.link || '#'}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center gap-2 text-sm font-semibold text-ink hover:underline"
-                    >
-                        Read source
-                        <span aria-hidden="true">↗</span>
-                    </a>
-                `;
-
-                container.appendChild(card);
-            });
-        }
-
-        function renderCoin(coin) {
-            const data = analysisData[coin];
-            if (!data) return;
-
-            document.getElementById("heroCoin").textContent = coin;
-            document.getElementById("heroPrice").textContent = formatPrice(data.current_price);
-            document.getElementById("heroConfidence").textContent = `${Math.round((data.confidence || 0) * 100)}%`;
-            document.getElementById("heroSummary").textContent = data.ai_summary || data.insight || "No AI summary available.";
-
-            const signalEl = document.getElementById("heroSignal");
-            signalEl.textContent = data.signal || "HOLD";
-            signalEl.className = `px-3 py-1.5 rounded-full border text-sm font-bold uppercase tracking-wide ${signalClass(data.signal || "HOLD")}`;
-
-            document.getElementById("heroRegime").textContent = data.market_regime || "Transitional";
-            document.getElementById("heroRiskPosture").textContent = data.risk_posture || data.risk_level || "LOW";
-
-            const newsLabel = data.news_context?.sentiment_label || "NEUTRAL";
-            document.getElementById("heroNewsLabel").textContent = newsLabel;
-            document.getElementById("heroArticleCount").textContent = data.news_context?.article_count ?? 0;
-
-            document.getElementById("bullCase").textContent = formatPercent(data.scenario_analysis?.bull_case ?? 0);
-            document.getElementById("baseCase").textContent = formatPercent(data.scenario_analysis?.base_case ?? 0);
-            document.getElementById("bearCase").textContent = formatPercent(data.scenario_analysis?.bear_case ?? 0);
-
-            document.getElementById("riskMdd").textContent = formatPercent(data.max_drawdown ?? 0);
-            document.getElementById("riskVar").textContent = formatPercent(data.value_at_risk ?? 0);
-            document.getElementById("riskReward").textContent = formatPlain(data.risk_reward ?? 0, 2);
-            document.getElementById("volatilityValue").textContent = formatPlain(data.volatility ?? 0, 4);
-
-            document.getElementById("btWinRate").textContent = formatPercent(data.bt_win_rate ?? 0, 1);
-            document.getElementById("btPnl").textContent = formatPercent(data.bt_pnl ?? 0, 2);
-            document.getElementById("btTrades").textContent = data.bt_trades ?? 0;
-
-            document.getElementById("mtfShort").textContent = data.mtf_short || "-";
-            document.getElementById("mtfShort").className = `text-sm font-bold ${mtfTone(data.mtf_short)}`;
-
-            document.getElementById("mtfMed").textContent = data.mtf_med || "-";
-            document.getElementById("mtfMed").className = `text-sm font-bold ${mtfTone(data.mtf_med)}`;
-
-            document.getElementById("mtfLong").textContent = data.mtf_long || "-";
-            document.getElementById("mtfLong").className = `text-sm font-bold ${mtfTone(data.mtf_long)}`;
-
-            document.getElementById("bullishFactors").innerHTML = listToHtml(data.bullish_factors || [], "bull");
-            document.getElementById("bearishFactors").innerHTML = listToHtml(data.bearish_factors || [], "bear");
-            document.getElementById("watchpoints").innerHTML = listToHtml(data.watchpoints || [], "watch");
-
-            const newsSummary = data.news_context?.summary || "No current news summary is available.";
-            document.getElementById("newsSummary").textContent = newsSummary;
-
-            const newsBadge = document.getElementById("newsLabelBadge");
-            newsBadge.textContent = newsLabel;
-            newsBadge.className = `px-3 py-1.5 rounded-full text-sm font-bold ${sentimentClass(newsLabel)}`;
-
-            renderNewsArticles(data.news_context?.top_articles || []);
-
-            document.getElementById("techRsi").textContent = formatPlain(data.technical_context?.rsi ?? 0, 2);
-            document.getElementById("techAtr").textContent = formatPlain(data.technical_context?.atr ?? 0, 2);
-            document.getElementById("techMacd").textContent = formatPlain(data.technical_context?.macd ?? 0, 2);
-            document.getElementById("techMacdSignal").textContent = formatPlain(data.technical_context?.macd_signal ?? 0, 2);
-            document.getElementById("techEma20").textContent = formatPlain(data.technical_context?.ema20 ?? 0, 2);
-            document.getElementById("techSma20").textContent = formatPlain(data.technical_context?.sma20 ?? 0, 2);
-
-            renderChart(coin, data);
-        }
-
-        async function loadAnalysis() {
-            try {
-                const response = await fetch("/api/ai-analysis/");
-                const statusEl = document.getElementById("connectionStatus");
-
-                if (response.status === 202) {
-                    statusEl.textContent = "Analysis is warming up";
-                    statusEl.className = "px-3 py-2 rounded-full border border-amber-200 bg-amber-50 text-sm font-medium text-amber-800";
-                    return;
-                }
-
-                if (!response.ok) {
-                    throw new Error("Failed to fetch analysis data.");
-                }
-
-                const data = await response.json();
-
-                analysisData = data;
-                const coins = Object.keys(analysisData);
-
-                if (!coins.length) {
-                    throw new Error("No coin analysis was returned.");
-                }
-
-                if (!selectedCoin || !analysisData[selectedCoin]) {
-                    selectedCoin = coins[0];
-                }
-
-                buildCoinSelector(coins);
-                renderCoin(selectedCoin);
-
-                document.getElementById("loadingState").classList.add("hidden");
-                document.getElementById("errorState").classList.add("hidden");
-                document.getElementById("dashboardContent").classList.remove("hidden");
-
-                statusEl.textContent = "Live analysis ready";
-                statusEl.className = "px-3 py-2 rounded-full border border-green-200 bg-green-50 text-sm font-medium text-green-800";
-            } catch (error) {
-                document.getElementById("loadingState").classList.add("hidden");
-                document.getElementById("dashboardContent").classList.add("hidden");
-                document.getElementById("errorState").classList.remove("hidden");
-                document.getElementById("errorMessage").textContent = error.message || "Something went wrong while loading analysis data.";
-
-                const statusEl = document.getElementById("connectionStatus");
-                statusEl.textContent = "Connection issue";
-                statusEl.className = "px-3 py-2 rounded-full border border-red-200 bg-red-50 text-sm font-medium text-red-800";
-            }
-        }
-
-        loadAnalysis();
-        setInterval(loadAnalysis, 60000);
-    </script>
+    <script src="{% static 'js/dashboard.js' %}"></script>
 </body>
 </html>

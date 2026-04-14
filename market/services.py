@@ -58,62 +58,77 @@
 import requests
 import pandas as pd
 from datetime import datetime
-import os
 
-URL = "https://min-api.cryptocompare.com/data/v2/histohour"
+BASE_URL = "https://api.binance.com"
+KLINES_ENDPOINT = "/api/v3/klines"
 
-COINS = ["BTC","ETH","BNB","ADA","DOGE","DOT","LTC"]
+COINS = ["BTC", "ETH", "BNB", "ADA", "DOGE", "DOT", "LTC"]
+QUOTE_ASSET = "USDT"
+INTERVAL = "1h"
+LIMIT = 200
 
-# 1.api key
-API_KEY = os.getenv("CRYPTOCOMPARE_API_KEY")
 
 def fetch_coin_data(symbol):
-    # 2.api key
-    headers = {
-         "authorization": f"Apikey {API_KEY}"
-    }
-    
+    """
+    Fetch hourly OHLCV market data for a single coin from Binance Spot API.
+    """
+    pair = f"{symbol}{QUOTE_ASSET}"
+
     params = {
-        "fsym": symbol,
-        "tsym": "USD",
-        "limit": 200
+        "symbol": pair,
+        "interval": INTERVAL,
+        "limit": LIMIT,
     }
 
-    # 3. api key with the header
-    response = requests.get(URL, headers=headers, params=params)
+    response = requests.get(
+        f"{BASE_URL}{KLINES_ENDPOINT}",
+        params=params,
+        timeout=20,
+    )
+    response.raise_for_status()
 
     data = response.json()
 
-    
-    if "Data" not in data or "Data" not in data.get("Data", {}):
-        error_message = data.get("Message", "Unknown API Error")
-        print(f"Error fetching {symbol}. Reason from API: {error_message}")
-        return None
-
-    data = data["Data"]["Data"]
-
-    if not data:
+    if not isinstance(data, list) or not data:
         print(f"No historical data found for {symbol}")
         return None
 
-    df = pd.DataFrame(data)
+    rows = []
+    for item in data:
+        rows.append(
+            {
+                "time": datetime.fromtimestamp(item[0] / 1000),
+                "open": float(item[1]),
+                "high": float(item[2]),
+                "low": float(item[3]),
+                "close": float(item[4]),
+                "volumefrom": float(item[5]),
+                "volumeto": float(item[7]),
+                "conversionType": "direct",
+                "conversionSymbol": "",
+                "symbol": symbol,
+            }
+        )
 
-    df["time"] = df["time"].apply(lambda x: datetime.fromtimestamp(x))
-    df["symbol"] = symbol
-
+    df = pd.DataFrame(rows)
     return df
 
 
 def fetch_all_coins():
+    """
+    Fetch market data for all configured coins and merge into one DataFrame.
+    """
     all_data = []
 
     for coin in COINS:
-        df = fetch_coin_data(coin)
-
-        if df is not None:
-            all_data.append(df)
+        try:
+            df = fetch_coin_data(coin)
+            if df is not None:
+                all_data.append(df)
+        except Exception as e:
+            print(f"Error fetching {coin}: {e}")
 
     if not all_data:
-        raise Exception("No API data available for any coin")
+        raise Exception("No Binance API data available for any coin")
 
     return pd.concat(all_data, ignore_index=True)

@@ -1,0 +1,64 @@
+body {
+    background:
+        radial-gradient(circle at top left, rgba(34, 197, 94, 0.06), transparent 28%),
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.05), transparent 22%),
+        #f5f7f4;
+}
+
+.glass-strip {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.75);
+}
+
+.coin-chip.active {
+    background: #111827;
+    color: white;
+    border-color: #111827;
+}
+
+.signal-buy {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+.signal-sell {
+    background: #ffe4e6;
+    color: #be123c;
+    border-color: #fecdd3;
+}
+
+.signal-hold {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.sentiment-bullish {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.sentiment-bearish {
+    background: #ffe4e6;
+    color: #be123c;
+}
+
+.sentiment-neutral {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.thin-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 999px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}

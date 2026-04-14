@@ -17,17 +17,30 @@ from .lstm_model import (
     train_lstm_for_coin,
 )
 from .models import MarketPrediction
-from .predict import predict_coin
+from .predict_v2 import predict_coin_v2
 from .services import fetch_all_coins
 
 # Suppress warnings in background tasks
 logging.getLogger("absl").setLevel(logging.ERROR)
 
 
+def safe_float_for_db(value, default=0.0):
+    """
+    Convert possibly missing values into safe floats for database storage.
+    """
+    if value is None:
+        return default
+
+    try:
+        return float(value)
+    except Exception:
+        return default
+
+
 def background_ai_training():
     """
     Scheduled task to fetch fresh data, fine-tune models,
-    generate new predictions, update the cache,
+    generate new V2 predictions, update the cache,
     and store prediction snapshots in the database.
     """
     print("\n[SYSTEM] Starting scheduled AI background training & cache warm-up...")
@@ -36,7 +49,9 @@ def background_ai_training():
         df = fetch_all_coins()
         coins = df["symbol"].unique()
 
-        # Phase 1: Online learning and fine-tuning
+        # Phase 1: Legacy sequence-model maintenance
+        # This stays for now because V2 still uses the legacy forecast model
+        # as a temporary forecast source.
         for coin in coins:
             model_path, scaler_path = get_model_paths(coin)
 
@@ -57,7 +72,7 @@ def background_ai_training():
             data_matrix = coin_df[features_list].values
 
             if os.path.exists(model_path) and os.path.exists(scaler_path):
-                print(f"--> Fine-tuning {coin} model with latest data...")
+                print(f"--> Fine-tuning {coin} legacy forecast model with latest data...")
                 model = keras_load_model(model_path)
                 scaler = joblib.load(scaler_path)
 
@@ -71,16 +86,16 @@ def background_ai_training():
                         model.fit(X_new, y_new, epochs=1, batch_size=4, verbose=0)
                         model.save(model_path)
             else:
-                print(f"--> No model found for {coin}. Training from scratch...")
+                print(f"--> No legacy forecast model found for {coin}. Training from scratch...")
                 train_lstm_for_coin(df, coin)
 
-        # Phase 2: Cache warming and database snapshot storage
-        print("[SYSTEM] Models updated. Generating new predictions for cache...")
+        # Phase 2: Cache warming and database snapshot storage using V2
+        print("[SYSTEM] Models updated. Generating new V2 predictions for cache...")
         results = {}
 
         for coin in coins:
             try:
-                result = predict_coin(df, coin)
+                result = predict_coin_v2(df, coin)
                 results[coin] = result
 
                 # Remove the latest duplicate snapshot for the same symbol if needed
@@ -100,25 +115,25 @@ def background_ai_training():
 
                 MarketPrediction.objects.create(
                     symbol=coin,
-                    current_price=result["current_price"],
-                    direction=result["direction"],
-                    confidence=result["confidence"],
-                    insight=result["insight"],
-                    risk_level=result["risk_level"],
-                    nlp_score=result.get("nlp_score", 0.0),
-                    max_drawdown=result.get("max_drawdown", 0.0),
-                    value_at_risk=result.get("value_at_risk", 0.0),
-                    risk_reward=result.get("risk_reward", 0.0),
+                    current_price=safe_float_for_db(result.get("current_price")),
+                    direction=result.get("direction", "NEUTRAL"),
+                    confidence=safe_float_for_db(result.get("confidence")),
+                    insight=result.get("insight", ""),
+                    risk_level=result.get("risk_level", "MEDIUM RISK"),
+                    nlp_score=safe_float_for_db(result.get("nlp_score")),
+                    max_drawdown=safe_float_for_db(result.get("max_drawdown")),
+                    value_at_risk=safe_float_for_db(result.get("value_at_risk")),
+                    risk_reward=safe_float_for_db(result.get("risk_reward")),
                 )
 
             except Exception as e:
-                print(f"Error predicting {coin}: {e}")
+                print(f"Error predicting {coin} with V2: {e}")
                 results[coin] = {"error": str(e)}
 
         # Save to cache for 20 minutes
         cache.set("ai_market_analysis", results, 1200)
 
-        print("[SYSTEM] Cache successfully updated! Dashboard is now instantly ready.\n")
+        print("[SYSTEM] V2 cache successfully updated! Dashboard is now instantly ready.\n")
 
     except Exception as e:
         print(f"[ERROR] Background task failed: {e}")
