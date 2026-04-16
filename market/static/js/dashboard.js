@@ -294,7 +294,7 @@ function renderCoin(coin) {
     document.getElementById("heroPrice").textContent = formatPrice(data.current_price);
 
     document.getElementById("heroSetupScore").textContent = `${Math.round(data.setup_score ?? 0)} / 100`;
-    document.getElementById("heroScoreHintShort").textContent = "Measures setup quality, not price certainty.";
+    document.getElementById("heroScoreHintShort").textContent = "This score shows how strong and clear the opportunity is";
 
     document.getElementById("heroSignalStrength").textContent = data.signal_strength || "-";
     document.getElementById("heroTradeStance").textContent = data.trade_stance || "-";
@@ -304,7 +304,7 @@ function renderCoin(coin) {
 
     document.getElementById("heroSummary").textContent = data.ai_summary || data.insight || "No AI summary available.";
     document.getElementById("heroSignalExplainer").textContent = data.signal_explainer || "No signal explanation is available.";
-    document.getElementById("heroScoreHint").textContent = data.confidence_explainer || "This score reflects setup quality, not price certainty.";
+    document.getElementById("heroScoreHint").textContent = data.confidence_explainer || "This score shows how strong and clear the opportunity is";
 
     const signalEl = document.getElementById("heroSignal");
     signalEl.textContent = data.signal || "HOLD";
