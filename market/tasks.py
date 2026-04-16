@@ -2,7 +2,7 @@
 
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import joblib
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
@@ -22,6 +22,8 @@ from .services import fetch_all_coins
 
 # Suppress warnings in background tasks
 logging.getLogger("absl").setLevel(logging.ERROR)
+
+scheduler = None
 
 
 def safe_float_for_db(value, default=0.0):
@@ -50,8 +52,6 @@ def background_ai_training():
         coins = df["symbol"].unique()
 
         # Phase 1: Legacy sequence-model maintenance
-        # This stays for now because V2 still uses the legacy forecast model
-        # as a temporary forecast source.
         for coin in coins:
             model_path, scaler_path = get_model_paths(coin)
 
@@ -98,7 +98,6 @@ def background_ai_training():
                 result = predict_coin_v2(df, coin)
                 results[coin] = result
 
-                # Remove the latest duplicate snapshot for the same symbol if needed
                 last_entry = (
                     MarketPrediction.objects.filter(symbol=coin)
                     .order_by("-created_at")
@@ -130,7 +129,6 @@ def background_ai_training():
                 print(f"Error predicting {coin} with V2: {e}")
                 results[coin] = {"error": str(e)}
 
-        # Save to cache for 20 minutes
         cache.set("ai_market_analysis", results, 1200)
 
         print("[SYSTEM] V2 cache successfully updated! Dashboard is now instantly ready.\n")
@@ -139,7 +137,37 @@ def background_ai_training():
         print(f"[ERROR] Background task failed: {e}")
 
 
+def should_enable_scheduler():
+    """
+    Decide whether APScheduler should run in this environment.
+    Disable it on Render web service startup to prevent blocking boot.
+    """
+    if os.environ.get("DISABLE_SCHEDULER", "False") == "True":
+        return False
+
+    # Render provides this environment variable in web services.
+    # We disable the in-process scheduler there by default.
+    if os.environ.get("RENDER") == "true":
+        return False
+
+    return True
+
+
 def start_scheduler():
+    """
+    Start APScheduler only in supported environments.
+    Do not run immediate heavy jobs during app startup.
+    """
+    global scheduler
+
+    if not should_enable_scheduler():
+        print("[SYSTEM] Scheduler disabled for this environment.")
+        return
+
+    if scheduler is not None:
+        print("[SYSTEM] Scheduler already running.")
+        return
+
     if os.environ.get("RUN_MAIN"):
         scheduler = BackgroundScheduler()
 
@@ -149,7 +177,7 @@ def start_scheduler():
             minutes=15,
             id="ai_training_job",
             replace_existing=True,
-            next_run_time=datetime.now(),
+            next_run_time=datetime.now() + timedelta(minutes=2),
         )
         scheduler.start()
-        print("[SYSTEM] APScheduler started. First run executing now...")
+        print("[SYSTEM] APScheduler started. First run scheduled in 2 minutes.")

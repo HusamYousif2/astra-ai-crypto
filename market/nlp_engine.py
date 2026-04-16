@@ -1,14 +1,14 @@
-# market/nlp_engine.py
-
 import re
+import logging
 
 import feedparser  # type: ignore
-from transformers import pipeline  # type: ignore
 
-# Initialize FinBERT once at startup
-sentiment_analyzer = pipeline("sentiment-analysis", model="ProsusAI/finbert")
 
-# Major crypto news RSS feeds
+logger = logging.getLogger(__name__)
+
+sentiment_analyzer = None
+
+
 RSS_FEEDS = {
     "cointelegraph": "https://cointelegraph.com/rss",
     "coindesk": "https://www.coindesk.com/arc/outboundfeeds/rss/",
@@ -16,18 +16,38 @@ RSS_FEEDS = {
 }
 
 
+def get_sentiment_model():
+    """
+    Lazily load the sentiment model only when needed.
+    This prevents heavy model loading during Django startup.
+    """
+    global sentiment_analyzer
+
+    if sentiment_analyzer is None:
+        from transformers import pipeline  # type: ignore
+
+        logger.info("Loading FinBERT sentiment model...")
+        sentiment_analyzer = pipeline(
+            "sentiment-analysis",
+            model="ProsusAI/finbert",
+        )
+
+    return sentiment_analyzer
+
+
 def clean_text(text):
     """
-    Remove HTML tags and extra spaces from RSS content.
+    Remove HTML tags and extra spaces from the RSS summary.
     """
     clean = re.compile(r"<.*?>")
-    text_without_html = re.sub(clean, "", text)
+    text_without_html = re.sub(clean, "", text or "")
     return " ".join(text_without_html.split())
 
 
 def fetch_latest_news():
     """
-    Fetch the latest articles from all configured RSS feeds.
+    Fetch the latest articles from all defined RSS feeds.
+    Returns a list of dictionaries containing title, summary, and link.
     """
     all_articles = []
 
@@ -45,158 +65,140 @@ def fetch_latest_news():
                     }
                 )
         except Exception as e:
-            print(f"Failed to fetch from {source}: {e}")
+            logger.warning("Failed to fetch from %s: %s", source, e)
 
     return all_articles
 
 
 def get_coin_keywords(coin_symbol):
     """
-    Build a keyword list for a coin symbol and its common name.
+    Return common keywords for a coin.
     """
-    coin_symbol = coin_symbol.lower()
+    base = coin_symbol.lower()
 
     name_map = {
         "btc": ["btc", "bitcoin"],
         "eth": ["eth", "ethereum"],
         "ada": ["ada", "cardano"],
         "doge": ["doge", "dogecoin"],
-        "sol": ["sol", "solana"],
-        "xrp": ["xrp", "ripple"],
-        "bnb": ["bnb", "binance coin", "binance"],
         "dot": ["dot", "polkadot"],
         "ltc": ["ltc", "litecoin"],
+        "bnb": ["bnb", "binance coin", "binance"],
+        "sol": ["sol", "solana"],
+        "xrp": ["xrp", "ripple"],
     }
 
-    return name_map.get(coin_symbol, [coin_symbol])
+    return name_map.get(base, [base])
 
 
-def classify_sentiment_label(score):
+def score_article_sentiment(article):
     """
-    Convert a numeric score into a business-friendly label.
+    Score one article using the lazily loaded sentiment model.
     """
-    if score > 0.20:
-        return "BULLISH"
-    if score < -0.20:
-        return "BEARISH"
-    return "NEUTRAL"
+    model = get_sentiment_model()
 
-
-def analyze_article_sentiment(article):
-    """
-    Analyze sentiment for a single article using FinBERT.
-    """
-    text_for_ai = f"{article['title']}. {article['summary']}".strip()
+    text_for_ai = f"{article.get('title', '')}. {article.get('summary', '')}".strip()
     text_for_ai = text_for_ai[:500]
 
-    result = sentiment_analyzer(text_for_ai)[0]
-    raw_label = result["label"].lower()
-    confidence = float(result["score"])
+    result = model(text_for_ai)[0]
+
+    raw_label = str(result.get("label", "neutral")).lower()
+    confidence = float(result.get("score", 0.0))
 
     if raw_label == "positive":
-        signed_score = confidence
-        final_label = "BULLISH"
+        sentiment_label = "BULLISH"
+        sentiment_score = confidence
     elif raw_label == "negative":
-        signed_score = -confidence
-        final_label = "BEARISH"
+        sentiment_label = "BEARISH"
+        sentiment_score = -confidence
     else:
-        signed_score = 0.0
-        final_label = "NEUTRAL"
+        sentiment_label = "NEUTRAL"
+        sentiment_score = 0.0
 
     return {
-        "sentiment_label": final_label,
-        "sentiment_score": round(signed_score, 3),
+        "sentiment_label": sentiment_label,
+        "sentiment_score": round(float(sentiment_score), 3),
         "model_confidence": round(confidence, 3),
     }
 
 
-def build_news_summary(coin_symbol, overall_label, article_count, top_articles):
+def build_summary(label, article_count, articles):
     """
-    Build a professional summary for the news panel.
+    Build a readable summary for the dashboard.
     """
     if article_count == 0:
-        return f"No meaningful recent news was detected for {coin_symbol.upper()}."
+        return "No meaningful recent news was detected."
 
-    if overall_label == "BULLISH":
-        tone = "Recent news flow is supportive overall."
-    elif overall_label == "BEARISH":
-        tone = "Recent news flow is negative overall."
+    if label == "BULLISH":
+        opening = "Recent news flow is supportive overall."
+    elif label == "BEARISH":
+        opening = "Recent news flow is negative overall."
     else:
-        tone = "Recent news flow is mixed and not strongly directional."
+        opening = "Recent news flow is mixed and not strongly directional."
 
-    top_titles = [article["title"] for article in top_articles[:2] if article.get("title")]
-
+    top_titles = [article.get("title", "") for article in articles[:2] if article.get("title", "")]
     if top_titles:
-        return f"{tone} {article_count} relevant article(s) were detected. Key headlines include: " + " | ".join(top_titles)
-    return f"{tone} {article_count} relevant article(s) were detected."
+        return (
+            f"{opening} {article_count} relevant article(s) were detected. "
+            f"Key headlines include: {' | '.join(top_titles)}"
+        )
+
+    return f"{opening} {article_count} relevant article(s) were detected."
 
 
 def analyze_coin_sentiment(coin_symbol):
     """
-    Analyze recent news sentiment for a specific coin.
-    Returns both aggregate output and article-level detail.
+    Filter news for a specific coin and calculate the overall AI sentiment score.
+    Returns a dashboard-ready structure.
     """
     articles = fetch_latest_news()
-    coin_keywords = get_coin_keywords(coin_symbol)
+    keywords = get_coin_keywords(coin_symbol)
 
     relevant_articles = []
+    total_score = 0.0
+
     for article in articles:
-        text_to_search = f"{article['title']} {article['summary']}".lower()
+        text_to_search = f"{article.get('title', '')} {article.get('summary', '')}".lower()
 
-        if any(keyword in text_to_search for keyword in coin_keywords):
-            relevant_articles.append(article)
+        if any(keyword in text_to_search for keyword in keywords):
+            sentiment_info = score_article_sentiment(article)
 
-    if not relevant_articles:
+            enriched_article = {
+                **article,
+                **sentiment_info,
+            }
+
+            total_score += sentiment_info["sentiment_score"]
+            relevant_articles.append(enriched_article)
+
+    article_count = len(relevant_articles)
+
+    if article_count == 0:
         return {
             "score": 0.0,
             "label": "NEUTRAL",
             "article_count": 0,
-            "summary": f"No meaningful recent news was detected for {coin_symbol.upper()}.",
+            "summary": "No meaningful recent news was detected.",
             "articles": [],
         }
 
-    enriched_articles = []
-    total_score = 0.0
+    avg_score = total_score / article_count
 
-    for article in relevant_articles:
-        sentiment_data = analyze_article_sentiment(article)
+    if avg_score > 0.20:
+        final_label = "BULLISH"
+    elif avg_score < -0.20:
+        final_label = "BEARISH"
+    else:
+        final_label = "NEUTRAL"
 
-        enriched_article = {
-            "source": article["source"],
-            "title": article["title"],
-            "summary": article["summary"],
-            "link": article["link"],
-            "sentiment_label": sentiment_data["sentiment_label"],
-            "sentiment_score": sentiment_data["sentiment_score"],
-            "model_confidence": sentiment_data["model_confidence"],
-        }
-
-        enriched_articles.append(enriched_article)
-        total_score += sentiment_data["sentiment_score"]
-
-    avg_score = total_score / len(enriched_articles)
-    final_label = classify_sentiment_label(avg_score)
-
-    # Sort articles by absolute sentiment impact
-    enriched_articles = sorted(
-        enriched_articles,
-        key=lambda x: abs(x["sentiment_score"]),
-        reverse=True,
-    )
-
-    summary = build_news_summary(
-        coin_symbol=coin_symbol,
-        overall_label=final_label,
-        article_count=len(enriched_articles),
-        top_articles=enriched_articles,
-    )
+    summary = build_summary(final_label, article_count, relevant_articles)
 
     return {
-        "score": round(avg_score, 3),
+        "score": round(float(avg_score), 3),
         "label": final_label,
-        "article_count": len(enriched_articles),
+        "article_count": article_count,
         "summary": summary,
-        "articles": enriched_articles[:5],
+        "articles": relevant_articles,
     }
 
 
