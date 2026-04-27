@@ -1,0 +1,12 @@
+# Python Cache
+__pycache__/
+*.py[cod]
+
+# Virtual Environment
+venv/
+
+# Logs
+*.log
+
+# Django Cache
+django_cache/
