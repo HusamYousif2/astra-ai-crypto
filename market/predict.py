@@ -1,9 +1,5 @@
-import os
 import logging
-
-# Suppress TensorFlow backend warnings
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-logging.getLogger("absl").setLevel(logging.ERROR)
+import os
 
 import joblib
 import numpy as np
@@ -12,21 +8,23 @@ from .features import add_indicators
 from .lstm_model import SEQ_LENGTH, create_sequences, get_model_paths
 from .nlp_engine import analyze_coin_sentiment
 
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+logging.getLogger("absl").setLevel(logging.ERROR)
+
+
+FORECAST_HORIZON = 24
+BACKTEST_LOOKBACK = 168
+CHART_LIMIT = 180
+
 
 def prepare_data(df, coin):
-    """
-    Filter data for a specific coin and add technical indicators.
-    """
     coin_df = df[df["symbol"] == coin].copy()
     coin_df = add_indicators(coin_df)
     coin_df = coin_df.dropna().reset_index(drop=True)
     return coin_df
 
 
-def run_fast_backtest(model, scaler, data_matrix, requested_lookback=168):
-    """
-    Run a lightweight historical simulation over the most recent window.
-    """
+def run_fast_backtest(model, scaler, data_matrix, requested_lookback=BACKTEST_LOOKBACK):
     max_available = len(data_matrix) - SEQ_LENGTH - 1
 
     if max_available < 10:
@@ -87,12 +85,9 @@ def run_fast_backtest(model, scaler, data_matrix, requested_lookback=168):
     }
 
 
-def lstm_forecast(model, scaler, data_matrix, steps=6):
-    """
-    Generate a multi-step forecast sequentially.
-    """
+def lstm_forecast(model, scaler, data_matrix, steps=FORECAST_HORIZON):
     preds = []
-    current_seq = data_matrix[-SEQ_LENGTH:]
+    current_seq = data_matrix[-SEQ_LENGTH:].copy()
 
     for _ in range(steps):
         current_seq_scaled = scaler.transform(current_seq)
@@ -114,9 +109,6 @@ def lstm_forecast(model, scaler, data_matrix, steps=6):
 
 
 def calculate_practical_risk_metrics(historical_prices, predicted_prices):
-    """
-    Calculate practical risk metrics for dashboard and decision support.
-    """
     peak = np.max(historical_prices)
     trough = np.min(historical_prices)
     max_drawdown = (peak - trough) / peak if peak > 0 else 0
@@ -141,9 +133,6 @@ def calculate_practical_risk_metrics(historical_prices, predicted_prices):
 
 
 def classify_market_regime(current_price, sma20, ema20, rsi, macd, macd_signal, volatility):
-    """
-    Classify the current market state into a human-readable regime.
-    """
     if current_price > ema20 > sma20 and macd > macd_signal and 45 <= rsi <= 70:
         return "Bullish Momentum"
 
@@ -160,9 +149,6 @@ def classify_market_regime(current_price, sma20, ema20, rsi, macd, macd_signal, 
 
 
 def classify_signal_strength(score):
-    """
-    Convert the internal score into a user-friendly strength label.
-    """
     edge = abs(score)
 
     if edge >= 4.0:
@@ -173,9 +159,6 @@ def classify_signal_strength(score):
 
 
 def determine_trade_stance(signal, signal_strength, risk_posture, expected_move_pct):
-    """
-    Convert signal quality into a practical action stance.
-    """
     if signal == "HOLD":
         return "No Trade"
 
@@ -192,9 +175,6 @@ def determine_trade_stance(signal, signal_strength, risk_posture, expected_move_
 
 
 def build_professional_signal(current_price, preds, nlp_result, indicators, advanced_risk):
-    """
-    Build a more professional decision layer with clear rationale.
-    """
     target_price = preds[-1]
     expected_move_pct = ((target_price - current_price) / current_price) * 100
 
@@ -211,21 +191,19 @@ def build_professional_signal(current_price, preds, nlp_result, indicators, adva
 
     score = 0.0
 
-    # Forecast contribution
     if expected_move_pct > 1.0:
         score += 2
-        bullish_factors.append("Model forecast points to meaningful upside over the next few hours.")
+        bullish_factors.append("Model forecast points to meaningful upside over the next 24 hours.")
     elif expected_move_pct > 0.2:
         score += 1
         bullish_factors.append("Forecast remains positive, but upside is moderate.")
     elif expected_move_pct < -1.0:
         score -= 2
-        bearish_factors.append("Model forecast points to meaningful downside over the next few hours.")
+        bearish_factors.append("Model forecast points to meaningful downside over the next 24 hours.")
     elif expected_move_pct < -0.2:
         score -= 1
         bearish_factors.append("Forecast remains negative, but downside is moderate.")
 
-    # Trend structure
     if current_price > ema20 > sma20:
         score += 1.5
         bullish_factors.append("Price is trading above key short-term trend averages.")
@@ -233,7 +211,6 @@ def build_professional_signal(current_price, preds, nlp_result, indicators, adva
         score -= 1.5
         bearish_factors.append("Price is trading below key short-term trend averages.")
 
-    # Momentum
     if macd > macd_signal:
         score += 1
         bullish_factors.append("MACD momentum remains supportive.")
@@ -241,7 +218,6 @@ def build_professional_signal(current_price, preds, nlp_result, indicators, adva
         score -= 1
         bearish_factors.append("MACD momentum remains weak.")
 
-    # RSI context
     if 50 <= rsi <= 68:
         score += 0.8
         bullish_factors.append("RSI shows constructive momentum without being overheated.")
@@ -255,7 +231,6 @@ def build_professional_signal(current_price, preds, nlp_result, indicators, adva
         bullish_factors.append("RSI is deeply stretched and may support a relief rebound.")
         watchpoints.append("Watch for confirmation of a rebound from oversold conditions.")
 
-    # Sentiment
     if sentiment_score > 0.20:
         score += 1
         bullish_factors.append("News sentiment is supportive.")
@@ -265,14 +240,12 @@ def build_professional_signal(current_price, preds, nlp_result, indicators, adva
     else:
         watchpoints.append("News flow is not yet a strong directional driver.")
 
-    # Risk
     if advanced_risk["var_95_pct"] > 3.0:
         bearish_factors.append("Short-term downside risk remains elevated.")
         watchpoints.append("Position sizing should remain conservative.")
     if advanced_risk["risk_reward_ratio"] < 1.0:
         bearish_factors.append("Risk/reward is not compelling at current levels.")
 
-    # Signal mapping
     if score >= 3:
         signal = "BUY"
         direction = "UP"
@@ -366,9 +339,6 @@ def build_professional_signal(current_price, preds, nlp_result, indicators, adva
 
 
 def predict_coin(df, coin):
-    """
-    Main orchestrator for institutional-style market intelligence output.
-    """
     features_list = [
         "close",
         "rsi",
@@ -394,7 +364,7 @@ def predict_coin(df, coin):
     else:
         raise Exception(f"AI model for {coin} is currently training in the background. Please wait.")
 
-    preds = lstm_forecast(model, scaler, data_matrix)
+    preds = lstm_forecast(model, scaler, data_matrix, steps=FORECAST_HORIZON)
 
     try:
         nlp_result = analyze_coin_sentiment(coin)
@@ -419,9 +389,9 @@ def predict_coin(df, coin):
     backtest_results = run_fast_backtest(model, scaler, data_matrix)
 
     returns = np.diff(preds) / preds[:-1]
-    volatility = float(np.std(returns))
+    volatility = float(np.std(returns)) if len(returns) > 0 else 0.0
 
-    recent_historical = coin_df["close"].values[-24:]
+    recent_historical = coin_df["close"].values[-168:] if len(coin_df) >= 168 else coin_df["close"].values
     advanced_risk = calculate_practical_risk_metrics(recent_historical, preds)
 
     professional_decision = build_professional_signal(
@@ -450,7 +420,7 @@ def predict_coin(df, coin):
         risk_level = "LOW RISK"
 
     recent_candles = []
-    for _, row in coin_df.tail(100).iterrows():
+    for _, row in coin_df.tail(CHART_LIMIT).iterrows():
         recent_candles.append(
             {
                 "time": int(row["time"].timestamp()),
@@ -480,14 +450,13 @@ def predict_coin(df, coin):
     }
 
     return {
-        # Legacy fields kept for current dashboard compatibility
         "current_price": current_price,
         "forecast_next_hours": preds,
         "direction": professional_decision["direction"],
         "confidence": professional_decision["confidence"],
         "insight": professional_decision["ai_summary"],
         "volatility": volatility,
-        "trend_strength": float(np.mean(returns)),
+        "trend_strength": float(np.mean(returns)) if len(returns) > 0 else 0.0,
         "risk_level": risk_level,
         "nlp_score": nlp_result["score"],
         "max_drawdown": advanced_risk["max_drawdown_pct"],
@@ -500,8 +469,6 @@ def predict_coin(df, coin):
         "bt_win_rate": backtest_results["win_rate"],
         "bt_pnl": backtest_results["pnl_pct"],
         "bt_trades": backtest_results["trades"],
-
-        # New professional fields
         "signal": professional_decision["signal"],
         "signal_strength": professional_decision["signal_strength"],
         "trade_stance": professional_decision["trade_stance"],

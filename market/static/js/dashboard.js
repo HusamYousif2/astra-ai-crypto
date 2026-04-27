@@ -1,15 +1,57 @@
 let analysisData = {};
 let selectedCoin = null;
+let selectedInterval = "1h";
+const selectedRange = "6m";
+
 let priceChart = null;
 let liveSocket = null;
 let liveReconnectTimer = null;
 let liveStreamCoin = null;
 
+const INTERVAL_OPTIONS = ["1h", "4h"];
+const DISPLAY_TIMEZONE = "Asia/Kuala_Lumpur";
+const MYT_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+const rawHistoryCache = {};
+let horizontalPanBound = false;
+let dragPanBound = false;
+let isDraggingChart = false;
+let dragStartX = 0;
+let viewportState = {
+    min: null,
+    max: null,
+    defaultMin: null,
+    defaultMax: null
+};
+let interactionLockUntil = 0;
+
+function nowMs() {
+    return Date.now();
+}
+
+function isInteractionLocked() {
+    return nowMs() < interactionLockUntil;
+}
+
+function lockChartInteraction(ms = 1800) {
+    interactionLockUntil = nowMs() + ms;
+}
+
+function getRawHistoryCacheKey(coin) {
+    return `${coin}|1h|${selectedRange}`;
+}
+
 function formatPrice(value) {
     if (value === null || value === undefined || isNaN(value)) return "-";
 
-    if (value >= 1000) return `$${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-    if (value >= 1) return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+    if (value >= 1000) {
+        return `$${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    }
+
+    if (value >= 1) {
+        return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+    }
+
     return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })}`;
 }
 
@@ -93,6 +135,18 @@ function setConnectionStatus(text, type = "neutral") {
     statusEl.className = "px-3 py-2 rounded-full border border-line bg-white text-sm font-medium text-gray-700";
 }
 
+function updateLastUpdatedLabel() {
+    const label = new Date().toLocaleString(undefined, {
+        timeZone: DISPLAY_TIMEZONE,
+        day: "numeric",
+        month: "short",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+    });
+    document.getElementById("lastUpdated").textContent = `Updated ${label} MYT`;
+}
+
 function buildCoinSelector(coins) {
     const container = document.getElementById("coinSelector");
     container.innerHTML = "";
@@ -106,71 +160,438 @@ function buildCoinSelector(coins) {
             button.classList.add("active");
         }
 
-        button.addEventListener("click", () => {
+        button.addEventListener("click", async () => {
             selectedCoin = coin;
             buildCoinSelector(Object.keys(analysisData));
             renderCoin(coin);
             connectLiveStream(coin);
+            await loadHistoryAndRenderChart(true);
         });
 
         container.appendChild(button);
     });
 }
 
-function renderChart(coin, data) {
-    const ctx = document.getElementById("priceChart").getContext("2d");
-    const chartData = data.chart_data || [];
-    const forecast = data.forecast_next_hours || [];
+function buildIntervalSelector() {
+    const container = document.getElementById("intervalSelector");
+    container.innerHTML = "";
 
-    const labels = chartData.map(item => {
-        const d = new Date(item.time * 1000);
-        return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    INTERVAL_OPTIONS.forEach(interval => {
+        const button = document.createElement("button");
+        const active = interval === selectedInterval;
+
+        button.className = active
+            ? "filter-chip active px-3 py-1.5 rounded-full border text-sm font-semibold"
+            : "filter-chip px-3 py-1.5 rounded-full border border-line bg-white text-sm font-semibold";
+
+        button.textContent = interval.toUpperCase();
+
+        button.addEventListener("click", async () => {
+            selectedInterval = interval;
+            buildIntervalSelector();
+            updateViewMeta();
+            connectLiveStream(selectedCoin);
+            await loadHistoryAndRenderChart(true);
+        });
+
+        container.appendChild(button);
+    });
+}
+
+function updateViewMeta() {
+    document.getElementById("viewMeta").textContent = `${selectedCoin || "-"} · ${selectedInterval} · 6M`;
+    document.getElementById("chartMeta").textContent = `Binance 1h history aggregated to ${selectedInterval} · 6M`;
+}
+
+function formatHistoryTooltip(ts) {
+    return new Date(ts).toLocaleString(undefined, {
+        timeZone: DISPLAY_TIMEZONE,
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+    }) + " (MYT)";
+}
+
+function getTimeUnitForInterval(interval) {
+    if (interval === "4h") return "day";
+    return "hour";
+}
+
+function getIntervalMs(interval) {
+    if (interval === "4h") return 4 * 60 * 60 * 1000;
+    return 60 * 60 * 1000;
+}
+
+function bucketStartMsForInterval(tsMs, interval) {
+    if (interval === "1h") {
+        return tsMs;
+    }
+
+    const shifted = tsMs + MYT_OFFSET_MS;
+
+    if (interval === "4h") {
+        const bucket = Math.floor(shifted / (4 * 60 * 60 * 1000)) * (4 * 60 * 60 * 1000);
+        return bucket - MYT_OFFSET_MS;
+    }
+
+    const bucket = Math.floor(shifted / (24 * 60 * 60 * 1000)) * (24 * 60 * 60 * 1000);
+    return bucket - MYT_OFFSET_MS;
+}
+
+function aggregateCandlesForDisplay(rawCandles, interval) {
+    if (!rawCandles || !rawCandles.length) return [];
+
+    if (interval === "1h") {
+        return rawCandles.map(item => ({
+            time: Number(item.time) * 1000,
+            open: Number(item.open),
+            high: Number(item.high),
+            low: Number(item.low),
+            close: Number(item.close),
+            volume: Number(item.volume || 0)
+        }));
+    }
+
+    const buckets = new Map();
+
+    rawCandles.forEach(item => {
+        const tsMs = Number(item.time) * 1000;
+        const bucketStart = bucketStartMsForInterval(tsMs, interval);
+
+        if (!buckets.has(bucketStart)) {
+            buckets.set(bucketStart, {
+                time: bucketStart,
+                open: Number(item.open),
+                high: Number(item.high),
+                low: Number(item.low),
+                close: Number(item.close),
+                volume: Number(item.volume || 0)
+            });
+        } else {
+            const bucket = buckets.get(bucketStart);
+            bucket.high = Math.max(bucket.high, Number(item.high));
+            bucket.low = Math.min(bucket.low, Number(item.low));
+            bucket.close = Number(item.close);
+            bucket.volume += Number(item.volume || 0);
+        }
     });
 
-    const closeValues = chartData.map(item => item.close);
+    return Array.from(buckets.values()).sort((a, b) => a.time - b.time);
+}
 
-    const forecastLabels = [...labels];
-    for (let i = 1; i <= forecast.length; i++) {
-        forecastLabels.push(`F+${i}`);
+function buildForecastDisplayData(historyTimestamps, forecastValues, analysisPayload, interval) {
+    if (!forecastValues || !forecastValues.length || !historyTimestamps.length) {
+        return {
+            basePoints: [],
+            lowerPoints: [],
+            upperPoints: []
+        };
     }
 
-    const historySeries = [...closeValues];
-    while (historySeries.length < forecastLabels.length) {
-        historySeries.push(null);
+    const currentPrice = Number(analysisPayload?.current_price || 0);
+    const atr = Number(analysisPayload?.technical_context?.atr || 0);
+    const volatility = Number(analysisPayload?.volatility || 0);
+
+    const baseBandPct = Math.max(
+        currentPrice > 0 ? (atr / currentPrice) * 0.45 : 0,
+        volatility * 1.25,
+        0.0018
+    );
+
+    const lastTs = historyTimestamps[historyTimestamps.length - 1];
+    const intervalMs = getIntervalMs(interval);
+
+    const selectedSteps =
+        interval === "4h"
+            ? [4, 8, 12, 16, 20, 24].filter(step => forecastValues[step - 1] !== undefined)
+            : Array.from({ length: Math.min(forecastValues.length, 24) }, (_, i) => i + 1);
+
+    const basePoints = [];
+    const lowerPoints = [];
+    const upperPoints = [];
+
+    selectedSteps.forEach((step, visualIndex) => {
+        const rawValue = Number(forecastValues[step - 1]);
+        const wave =
+            (Math.sin((visualIndex + 1) * 0.9) * 0.0022) +
+            (Math.cos((visualIndex + 1) * 0.45) * 0.0014);
+
+        const adjustedValue = rawValue * (1 + wave);
+        const bandPct = baseBandPct * (1 + (visualIndex + 1) * 0.08);
+        const bandValue = adjustedValue * bandPct;
+
+        const x = lastTs + ((visualIndex + 1) * intervalMs);
+
+        basePoints.push({ x, y: adjustedValue });
+        lowerPoints.push({ x, y: adjustedValue - bandValue });
+        upperPoints.push({ x, y: adjustedValue + bandValue });
+    });
+
+    return {
+        basePoints,
+        lowerPoints,
+        upperPoints
+    };
+}
+
+function saveViewportIfAvailable() {
+    if (!priceChart || !priceChart.scales || !priceChart.scales.x) return;
+
+    const xScale = priceChart.scales.x;
+    if (xScale.min === undefined || xScale.max === undefined) return;
+
+    viewportState.min = xScale.min;
+    viewportState.max = xScale.max;
+}
+
+function setViewport(min, max) {
+    if (!priceChart) return;
+
+    priceChart.options.scales.x.min = min;
+    priceChart.options.scales.x.max = max;
+    priceChart.update("none");
+
+    viewportState.min = min;
+    viewportState.max = max;
+}
+
+function resetChartToDefaultView() {
+    if (!priceChart) return;
+    setViewport(viewportState.defaultMin, viewportState.defaultMax);
+}
+
+function panViewport(deltaMs) {
+    if (!priceChart || !priceChart.scales || !priceChart.scales.x) return;
+
+    const xScale = priceChart.scales.x;
+    const currentMin = xScale.min ?? viewportState.defaultMin;
+    const currentMax = xScale.max ?? viewportState.defaultMax;
+
+    const range = currentMax - currentMin;
+    let nextMin = currentMin + deltaMs;
+    let nextMax = currentMax + deltaMs;
+
+    if (nextMin < viewportState.defaultMin) {
+        nextMin = viewportState.defaultMin;
+        nextMax = nextMin + range;
     }
 
-    const forecastSeries = new Array(Math.max(closeValues.length - 1, 0)).fill(null)
-        .concat(closeValues.length ? [closeValues[closeValues.length - 1]] : [null])
-        .concat(forecast);
+    if (nextMax > viewportState.defaultMax) {
+        nextMax = viewportState.defaultMax;
+        nextMin = nextMax - range;
+    }
+
+    setViewport(nextMin, nextMax);
+    lockChartInteraction();
+}
+
+function zoomViewport(centerX, factor) {
+    if (!priceChart || !priceChart.scales || !priceChart.scales.x) return;
+
+    const xScale = priceChart.scales.x;
+    const currentMin = xScale.min ?? viewportState.defaultMin;
+    const currentMax = xScale.max ?? viewportState.defaultMax;
+
+    const currentRange = Math.max(currentMax - currentMin, getIntervalMs(selectedInterval) * 8);
+    let nextRange = currentRange * factor;
+
+    const minRange = getIntervalMs(selectedInterval) * 8;
+    const maxRange = viewportState.defaultMax - viewportState.defaultMin;
+
+    nextRange = Math.max(minRange, Math.min(maxRange, nextRange));
+
+    const ratio = (centerX - currentMin) / currentRange;
+    let nextMin = centerX - (nextRange * ratio);
+    let nextMax = nextMin + nextRange;
+
+    if (nextMin < viewportState.defaultMin) {
+        nextMin = viewportState.defaultMin;
+        nextMax = nextMin + nextRange;
+    }
+
+    if (nextMax > viewportState.defaultMax) {
+        nextMax = viewportState.defaultMax;
+        nextMin = nextMax - nextRange;
+    }
+
+    setViewport(nextMin, nextMax);
+    lockChartInteraction();
+}
+
+function bindHorizontalTrackpadPan() {
+    const canvas = document.getElementById("priceChart");
+    if (!canvas || horizontalPanBound) return;
+
+    horizontalPanBound = true;
+
+    canvas.addEventListener("wheel", (event) => {
+        if (!priceChart) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+        const xScale = priceChart.scales.x;
+        const currentMin = xScale.min ?? viewportState.defaultMin;
+        const currentMax = xScale.max ?? viewportState.defaultMax;
+        const centerX = currentMin + ((currentMax - currentMin) * ratio);
+
+        if (Math.abs(event.deltaX) > Math.abs(event.deltaY) && Math.abs(event.deltaX) > 0) {
+            event.preventDefault();
+            const panStep = (currentMax - currentMin) * 0.08;
+            panViewport(event.deltaX > 0 ? panStep : -panStep);
+            return;
+        }
+
+        event.preventDefault();
+        const zoomFactor = event.deltaY > 0 ? 1.12 : 0.88;
+        zoomViewport(centerX, zoomFactor);
+    }, { passive: false });
+}
+
+function bindMouseDragPan() {
+    const canvas = document.getElementById("priceChart");
+    if (!canvas || dragPanBound) return;
+
+    dragPanBound = true;
+
+    canvas.addEventListener("mousedown", (event) => {
+        if (!priceChart || event.button !== 0) return;
+
+        isDraggingChart = true;
+        dragStartX = event.clientX;
+        lockChartInteraction();
+    });
+
+    window.addEventListener("mousemove", (event) => {
+        if (!isDraggingChart || !priceChart) return;
+
+        const dx = event.clientX - dragStartX;
+        if (Math.abs(dx) < 4) return;
+
+        const xScale = priceChart.scales.x;
+        const visibleRange = (xScale.max ?? viewportState.defaultMax) - (xScale.min ?? viewportState.defaultMin);
+        const msPerPixel = visibleRange / priceChart.width;
+        const deltaMs = -dx * msPerPixel;
+
+        panViewport(deltaMs);
+        dragStartX = event.clientX;
+    });
+
+    window.addEventListener("mouseup", () => {
+        isDraggingChart = false;
+    });
+
+    window.addEventListener("mouseleave", () => {
+        isDraggingChart = false;
+    });
+}
+
+function renderChart(rawHistoryPayload, analysisPayload, preserveViewport = true) {
+    const ctx = document.getElementById("priceChart").getContext("2d");
+    const rawCandles = rawHistoryPayload?.candles || [];
+    const displayCandles = aggregateCandlesForDisplay(rawCandles, selectedInterval);
+    const forecast = analysisPayload?.forecast_next_hours || [];
+
+    const historyPoints = displayCandles.map(item => ({
+        x: item.time,
+        y: Number(item.close)
+    }));
+
+    const historyTimestamps = historyPoints.map(item => item.x);
+
+    const forecastData = buildForecastDisplayData(
+        historyTimestamps,
+        forecast,
+        analysisPayload,
+        selectedInterval
+    );
+
+    const historySeries = historyPoints;
+    const historyLastPoint = historyPoints.length ? [historyPoints[historyPoints.length - 1]] : [];
+
+    const forecastLineSeries = historyLastPoint.concat(forecastData.basePoints);
+    const forecastLowerSeries = historyLastPoint.concat(forecastData.lowerPoints);
+    const forecastUpperSeries = historyLastPoint.concat(forecastData.upperPoints);
+
+    if (priceChart && preserveViewport) {
+        saveViewportIfAvailable();
+    }
 
     if (priceChart) {
         priceChart.destroy();
     }
 
+    const fullMin = historyPoints.length ? historyPoints[0].x : Date.now();
+    const fullMax = forecastData.basePoints.length
+        ? forecastData.basePoints[forecastData.basePoints.length - 1].x
+        : (historyPoints.length ? historyPoints[historyPoints.length - 1].x : Date.now());
+
+    viewportState.defaultMin = fullMin;
+    viewportState.defaultMax = fullMax;
+
+    let initialMin = fullMin;
+    let initialMax = fullMax;
+
+    if (preserveViewport && viewportState.min !== null && viewportState.max !== null) {
+        initialMin = Math.max(fullMin, viewportState.min);
+        initialMax = Math.min(fullMax, viewportState.max);
+
+        if (initialMax <= initialMin) {
+            initialMin = fullMin;
+            initialMax = fullMax;
+        }
+    }
+
     priceChart = new Chart(ctx, {
         type: "line",
         data: {
-            labels: forecastLabels,
             datasets: [
                 {
-                    label: `${coin} Price`,
+                    label: `${selectedCoin} Price`,
                     data: historySeries,
+                    parsing: false,
                     borderColor: "#111827",
                     backgroundColor: "rgba(17, 24, 39, 0.05)",
-                    borderWidth: 2.2,
+                    borderWidth: 2.4,
                     pointRadius: 0,
-                    tension: 0.35,
+                    tension: 0.22,
                     fill: false
                 },
                 {
-                    label: "AI Forecast",
-                    data: forecastSeries,
-                    borderColor: "#16a34a",
-                    backgroundColor: "rgba(22, 163, 74, 0.08)",
-                    borderWidth: 2.2,
+                    label: "Forecast Lower",
+                    data: forecastLowerSeries,
+                    parsing: false,
+                    borderColor: "rgba(22, 163, 74, 0)",
+                    backgroundColor: "rgba(22, 163, 74, 0.10)",
+                    borderWidth: 0,
                     pointRadius: 0,
-                    borderDash: [7, 7],
-                    tension: 0.35,
+                    tension: 0.24,
+                    fill: false
+                },
+                {
+                    label: "Forecast Range",
+                    data: forecastUpperSeries,
+                    parsing: false,
+                    borderColor: "rgba(22, 163, 74, 0)",
+                    backgroundColor: "rgba(22, 163, 74, 0.12)",
+                    borderWidth: 0,
+                    pointRadius: 0,
+                    tension: 0.24,
+                    fill: "-1"
+                },
+                {
+                    label: "AI Forecast",
+                    data: forecastLineSeries,
+                    parsing: false,
+                    borderColor: "#16a34a",
+                    backgroundColor: "rgba(22, 163, 74, 0)",
+                    borderWidth: 2.4,
+                    pointRadius: 0,
+                    borderDash: [7, 5],
+                    tension: 0.24,
                     fill: false
                 }
             ]
@@ -178,8 +599,9 @@ function renderChart(coin, data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
             interaction: {
-                mode: "index",
+                mode: "nearest",
                 intersect: false
             },
             plugins: {
@@ -192,6 +614,9 @@ function renderChart(coin, data) {
                         font: {
                             size: 12,
                             weight: "600"
+                        },
+                        filter: function(item) {
+                            return item.text !== "Forecast Lower" && item.text !== "Forecast Range";
                         }
                     }
                 },
@@ -199,17 +624,68 @@ function renderChart(coin, data) {
                     backgroundColor: "#111827",
                     titleColor: "#ffffff",
                     bodyColor: "#ffffff",
-                    displayColors: false
+                    displayColors: false,
+                    callbacks: {
+                        title: function(items) {
+                            if (!items || !items.length) return "";
+                            const xValue = items[0].raw?.x;
+                            return xValue ? formatHistoryTooltip(xValue) : "";
+                        },
+                        label: function(context) {
+                            const label = context.dataset.label || "";
+                            const value = context.raw?.y;
+
+                            if (label === "Forecast Lower" || label === "Forecast Range") {
+                                return null;
+                            }
+
+                            if (label === "AI Forecast") {
+                                const x = context.raw?.x;
+                                const lower = forecastLowerSeries.find(p => p.x === x)?.y;
+                                const upper = forecastUpperSeries.find(p => p.x === x)?.y;
+
+                                if (lower !== undefined && upper !== undefined) {
+                                    return [
+                                        `Expected: ${formatPrice(value)}`,
+                                        `Range: ${formatPrice(lower)} - ${formatPrice(upper)}`
+                                    ];
+                                }
+                            }
+
+                            return `${label}: ${formatPrice(value)}`;
+                        }
+                    }
+                },
+                zoom: {
+                    pan: { enabled: false },
+                    zoom: {
+                        wheel: { enabled: false },
+                        pinch: { enabled: false },
+                        drag: { enabled: false },
+                        mode: "x"
+                    }
                 }
             },
             scales: {
                 x: {
+                    type: "time",
+                    min: initialMin,
+                    max: initialMax,
+                    time: {
+                        unit: getTimeUnitForInterval(selectedInterval),
+                        tooltipFormat: "dd MMM yyyy HH:mm",
+                        displayFormats: {
+                            hour: "d MMM h a",
+                            day: "d MMM"
+                        }
+                    },
                     grid: {
                         color: "rgba(229, 231, 235, 0.7)"
                     },
                     ticks: {
                         color: "#6b7280",
-                        maxTicksLimit: 12
+                        autoSkip: true,
+                        maxTicksLimit: 10
                     }
                 },
                 y: {
@@ -318,7 +794,7 @@ function renderCoin(coin) {
 
     document.getElementById("riskMdd").textContent = formatPercent(data.max_drawdown ?? 0);
     document.getElementById("riskVar").textContent = formatPercent(data.value_at_risk ?? 0);
-    document.getElementById("riskReward").textContent = formatPlain(data.risk_reward ?? 0, 2);
+    document.getElementById("riskReward").textContent = data.risk_reward === null || data.risk_reward === undefined ? "-" : formatPlain(data.risk_reward, 2);
     document.getElementById("volatilityValue").textContent = formatPlain(data.volatility ?? 0, 4);
 
     document.getElementById("btWinRate").textContent = formatPercent(data.bt_win_rate ?? 0, 1);
@@ -354,7 +830,7 @@ function renderCoin(coin) {
     document.getElementById("techEma20").textContent = formatPlain(data.technical_context?.ema20 ?? 0, 2);
     document.getElementById("techSma20").textContent = formatPlain(data.technical_context?.sma20 ?? 0, 2);
 
-    renderChart(coin, data);
+    updateViewMeta();
 }
 
 function applyLiveTrade(coin, tradePayload) {
@@ -380,31 +856,32 @@ function applyLiveKline(coin, streamPayload) {
         high: parseFloat(k.h),
         low: parseFloat(k.l),
         close: parseFloat(k.c),
-        value: parseFloat(k.q)
+        volume: parseFloat(k.q),
+        quote_volume: parseFloat(k.q)
     };
 
-    analysisData[coin].current_price = candle.close;
+    const cacheKey = getRawHistoryCacheKey(coin);
 
-    if (!analysisData[coin].chart_data) {
-        analysisData[coin].chart_data = [];
+    if (!rawHistoryCache[cacheKey]) {
+        rawHistoryCache[cacheKey] = { candles: [] };
     }
 
-    const series = analysisData[coin].chart_data;
+    const series = rawHistoryCache[cacheKey].candles;
     const last = series.length ? series[series.length - 1] : null;
 
     if (last && last.time === candle.time) {
         series[series.length - 1] = candle;
     } else if (!last || candle.time > last.time) {
         series.push(candle);
-
-        if (series.length > 100) {
+        if (series.length > 5000) {
             series.shift();
         }
     }
 
+    analysisData[coin].current_price = candle.close;
+
     if (selectedCoin === coin) {
         document.getElementById("heroPrice").textContent = formatPrice(candle.close);
-        renderChart(coin, analysisData[coin]);
     }
 }
 
@@ -483,46 +960,125 @@ function connectLiveStream(coin) {
     };
 }
 
+async function fetchHistory(symbol, interval, rangeKey) {
+    const url = `/api/market-history/?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&range=${encodeURIComponent(rangeKey)}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch history (${response.status})`);
+    }
+
+    return response.json();
+}
+
+async function loadHistoryAndRenderChart(forceFetch = false) {
+    if (!selectedCoin || !analysisData[selectedCoin]) return;
+
+    const cacheKey = getRawHistoryCacheKey(selectedCoin);
+
+    try {
+        let rawHistoryPayload = rawHistoryCache[cacheKey];
+
+        if (!rawHistoryPayload || forceFetch) {
+            rawHistoryPayload = await fetchHistory(selectedCoin, "1h", selectedRange);
+            rawHistoryCache[cacheKey] = rawHistoryPayload;
+        }
+
+        renderChart(rawHistoryPayload, analysisData[selectedCoin], !forceFetch);
+    } catch (error) {
+        console.error("Failed to load history:", error);
+        setConnectionStatus("Failed to load chart history", "error");
+    }
+}
+
 async function loadAnalysis() {
     try {
         const response = await fetch("/api/ai-analysis/");
 
         if (response.status === 202) {
             setConnectionStatus("Analysis is warming up", "warning");
-            return;
+            return false;
         }
 
         if (!response.ok) {
-            throw new Error("Failed to fetch analysis data.");
+            throw new Error(`Failed to load analysis (${response.status})`);
         }
 
-        const data = await response.json();
-        analysisData = data;
-        const coins = Object.keys(analysisData);
+        const newAnalysisData = await response.json();
+        const coins = Object.keys(newAnalysisData);
 
         if (!coins.length) {
-            throw new Error("No coin analysis was returned.");
+            setConnectionStatus("No analysis data available", "error");
+            return false;
         }
+
+        analysisData = newAnalysisData;
 
         if (!selectedCoin || !analysisData[selectedCoin]) {
             selectedCoin = coins[0];
         }
 
         buildCoinSelector(coins);
+        buildIntervalSelector();
+
         renderCoin(selectedCoin);
         connectLiveStream(selectedCoin);
 
         document.getElementById("loadingState").classList.add("hidden");
-        document.getElementById("errorState").classList.add("hidden");
         document.getElementById("dashboardContent").classList.remove("hidden");
+
+        updateLastUpdatedLabel();
+        setConnectionStatus(`Analysis ready for ${selectedCoin}`, "success");
+        return true;
     } catch (error) {
-        document.getElementById("loadingState").classList.add("hidden");
-        document.getElementById("dashboardContent").classList.add("hidden");
-        document.getElementById("errorState").classList.remove("hidden");
-        document.getElementById("errorMessage").textContent = error.message || "Something went wrong while loading analysis data.";
-        setConnectionStatus("Connection issue", "error");
+        console.error("Failed to load analysis:", error);
+        setConnectionStatus("Failed to load analysis", "error");
+        return false;
     }
 }
 
-loadAnalysis();
-setInterval(loadAnalysis, 60000);
+async function refreshAnalysisPreserveSelection() {
+    const previousCoin = selectedCoin;
+    const previousInterval = selectedInterval;
+
+    const ok = await loadAnalysis();
+    if (!ok) return;
+
+    if (previousCoin && analysisData[previousCoin]) {
+        selectedCoin = previousCoin;
+        selectedInterval = previousInterval;
+        buildCoinSelector(Object.keys(analysisData));
+        buildIntervalSelector();
+        renderCoin(selectedCoin);
+
+        if (!isInteractionLocked() && !isDraggingChart) {
+            await loadHistoryAndRenderChart(false);
+        }
+    }
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+    if (window.ChartZoom) {
+        Chart.register(window.ChartZoom);
+    }
+
+    const resetZoomBtn = document.getElementById("resetZoomBtn");
+    if (resetZoomBtn) {
+        resetZoomBtn.addEventListener("click", () => {
+            resetChartToDefaultView();
+            lockChartInteraction(600);
+        });
+    }
+
+    bindHorizontalTrackpadPan();
+    bindMouseDragPan();
+
+    const ok = await loadAnalysis();
+    if (ok) {
+        await loadHistoryAndRenderChart(true);
+    }
+
+    setInterval(async () => {
+        await refreshAnalysisPreserveSelection();
+    }, 60000);
+});

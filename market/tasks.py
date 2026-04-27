@@ -1,8 +1,5 @@
-# market/tasks.py
-
-import os
 import logging
-from datetime import datetime, timedelta
+import os
 
 import joblib
 from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
@@ -18,18 +15,15 @@ from .lstm_model import (
 )
 from .models import MarketPrediction
 from .predict_v2 import predict_coin_v2
-from .services import fetch_all_coins
+from .services import fetch_all_coins, save_market_candles
 
-# Suppress warnings in background tasks
 logging.getLogger("absl").setLevel(logging.ERROR)
 
 scheduler = None
+startup_warmup_done = False
 
 
 def safe_float_for_db(value, default=0.0):
-    """
-    Convert possibly missing values into safe floats for database storage.
-    """
     if value is None:
         return default
 
@@ -40,18 +34,14 @@ def safe_float_for_db(value, default=0.0):
 
 
 def background_ai_training():
-    """
-    Scheduled task to fetch fresh data, fine-tune models,
-    generate new V2 predictions, update the cache,
-    and store prediction snapshots in the database.
-    """
     print("\n[SYSTEM] Starting scheduled AI background training & cache warm-up...")
 
     try:
-        df = fetch_all_coins()
+        df = fetch_all_coins(interval="1h", months=6)
+        save_market_candles(df, interval="1h")
+
         coins = df["symbol"].unique()
 
-        # Phase 1: Legacy sequence-model maintenance
         for coin in coins:
             model_path, scaler_path = get_model_paths(coin)
 
@@ -76,7 +66,7 @@ def background_ai_training():
                 model = keras_load_model(model_path)
                 scaler = joblib.load(scaler_path)
 
-                recent_data = data_matrix[-48:]
+                recent_data = data_matrix[-(SEQ_LENGTH + 48):]
                 if len(recent_data) > SEQ_LENGTH:
                     scaled_data = scaler.transform(recent_data)
                     X_new, y_new = create_sequences(scaled_data, SEQ_LENGTH)
@@ -89,7 +79,6 @@ def background_ai_training():
                 print(f"--> No legacy forecast model found for {coin}. Training from scratch...")
                 train_lstm_for_coin(df, coin)
 
-        # Phase 2: Cache warming and database snapshot storage using V2
         print("[SYSTEM] Models updated. Generating new V2 predictions for cache...")
         results = {}
 
@@ -130,7 +119,6 @@ def background_ai_training():
                 results[coin] = {"error": str(e)}
 
         cache.set("ai_market_analysis", results, 1200)
-
         print("[SYSTEM] V2 cache successfully updated! Dashboard is now instantly ready.\n")
 
     except Exception as e:
@@ -138,15 +126,9 @@ def background_ai_training():
 
 
 def should_enable_scheduler():
-    """
-    Decide whether APScheduler should run in this environment.
-    Disable it on Render web service startup to prevent blocking boot.
-    """
     if os.environ.get("DISABLE_SCHEDULER", "False") == "True":
         return False
 
-    # Render provides this environment variable in web services.
-    # We disable the in-process scheduler there by default.
     if os.environ.get("RENDER") == "true":
         return False
 
@@ -154,11 +136,8 @@ def should_enable_scheduler():
 
 
 def start_scheduler():
-    """
-    Start APScheduler only in supported environments.
-    Do not run immediate heavy jobs during app startup.
-    """
     global scheduler
+    global startup_warmup_done
 
     if not should_enable_scheduler():
         print("[SYSTEM] Scheduler disabled for this environment.")
@@ -169,6 +148,13 @@ def start_scheduler():
         return
 
     if os.environ.get("RUN_MAIN"):
+        print("[SYSTEM] Starting scheduler...")
+
+        if not startup_warmup_done:
+            print("[SYSTEM] Running one immediate startup warm-up...")
+            background_ai_training()
+            startup_warmup_done = True
+
         scheduler = BackgroundScheduler()
 
         scheduler.add_job(
@@ -177,7 +163,7 @@ def start_scheduler():
             minutes=15,
             id="ai_training_job",
             replace_existing=True,
-            next_run_time=datetime.now() + timedelta(minutes=2),
         )
+
         scheduler.start()
-        print("[SYSTEM] APScheduler started. First run scheduled in 2 minutes.")
+        print("[SYSTEM] Scheduler started successfully.")

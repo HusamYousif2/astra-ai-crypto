@@ -8,6 +8,9 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -67,160 +70,188 @@
                         <div id="connectionStatus" class="px-3 py-2 rounded-full border border-line bg-white text-sm font-medium text-gray-700">
                             Connecting...
                         </div>
-                        <div class="px-3 py-2 rounded-full border border-line bg-white text-sm font-medium text-gray-700">
-                            Refresh every 60s
+                        <div id="lastUpdated" class="px-3 py-2 rounded-full border border-line bg-white text-sm font-medium text-gray-700">
+                            Waiting for data...
                         </div>
                     </div>
                 </div>
 
                 <div>
-                    <p class="text-sm text-gray-600 max-w-3xl leading-6">
-                        A clear AI view of market direction, setup quality, risk, and news context. Designed to stay readable for beginners while still useful for more advanced crypto decision-making.
+                    <p class="text-sm text-gray-600 max-w-4xl leading-6">
+                        A clean AI view of market direction, setup quality, risk, and news context, with a zoomable price chart and AI forecast overlay.
                     </p>
                 </div>
 
-                <div id="coinSelector" class="flex gap-2 overflow-x-auto thin-scrollbar pb-1"></div>
+                <div class="flex flex-col gap-4">
+                    <div id="coinSelector" class="flex gap-2 overflow-x-auto thin-scrollbar pb-1"></div>
+
+                    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                        <div class="rounded-2xl border border-line bg-white px-3 py-2 w-fit">
+                            <label class="text-xs uppercase tracking-[0.16em] text-gray-500 font-semibold block mb-1">Timeframe</label>
+                            <div id="intervalSelector" class="flex gap-2"></div>
+                        </div>
+
+                        <div class="rounded-2xl border border-line bg-white px-4 py-3">
+                            <p class="text-xs uppercase tracking-[0.16em] text-gray-500 font-semibold">Current View</p>
+                            <p id="viewMeta" class="text-sm font-semibold text-gray-700 mt-1">BTC · 1h · 6M</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </header>
 
         <main id="dashboardContent" class="hidden space-y-6">
             <section class="grid grid-cols-1 xl:grid-cols-12 gap-6">
-    <div class="xl:col-span-8 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
-        <div class="flex flex-col gap-6">
-            <div class="flex flex-wrap items-center gap-3">
-                <h2 id="heroCoin" class="text-4xl sm:text-5xl font-extrabold tracking-tight">BTC</h2>
-                <span id="heroSignal" class="px-3 py-1.5 rounded-full border text-sm font-bold uppercase tracking-wide">
-                    HOLD
-                </span>
-                <span id="heroRegime" class="px-3 py-1.5 rounded-full bg-slateSoft text-slateText text-sm font-semibold">
-                    Market Regime
-                </span>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                <div class="space-y-5">
-                    <div>
-                        <p class="text-sm text-gray-500 mb-1">Current Price</p>
-                        <h3 id="heroPrice" class="text-4xl sm:text-5xl font-extrabold">$0.00</h3>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="rounded-2xl border border-line bg-shell px-4 py-4">
-                            <p class="text-sm text-gray-500 mb-1">Opportunity Score</p>
-                            <p id="heroSetupScore" class="text-2xl font-extrabold">0 / 100</p>
-                            <p id="heroScoreHintShort" class="text-xs text-gray-500 mt-2">
-                                This score shows how strong and clear the opportunity is
-                            </p>
+                <div class="xl:col-span-8 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
+                    <div class="flex flex-col gap-6">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <h2 id="heroCoin" class="text-4xl sm:text-5xl font-extrabold tracking-tight">BTC</h2>
+                            <span id="heroSignal" class="px-3 py-1.5 rounded-full border text-sm font-bold uppercase tracking-wide">
+                                HOLD
+                            </span>
+                            <span id="heroRegime" class="px-3 py-1.5 rounded-full bg-slateSoft text-slateText text-sm font-semibold">
+                                Market Regime
+                            </span>
                         </div>
 
-                        <div class="rounded-2xl border border-line bg-shell px-4 py-4">
-                            <p class="text-sm text-gray-500 mb-1">Signal Strength</p>
-                            <p id="heroSignalStrength" class="text-xl font-bold">Weak</p>
-                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                            <div class="space-y-5">
+                                <div>
+                                    <p class="text-sm text-gray-500 mb-1">Current Price</p>
+                                    <h3 id="heroPrice" class="text-4xl sm:text-5xl font-extrabold">$0.00</h3>
+                                </div>
 
-                        <div class="rounded-2xl border border-line bg-shell px-4 py-4">
-                            <p class="text-sm text-gray-500 mb-1">Trade Stance</p>
-                            <p id="heroTradeStance" class="text-xl font-bold">No Trade</p>
-                        </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                                        <p class="text-sm text-gray-500 mb-1">Opportunity Score</p>
+                                        <p id="heroSetupScore" class="text-2xl font-extrabold">0 / 100</p>
+                                        <p id="heroScoreHintShort" class="text-xs text-gray-500 mt-2">
+                                            This score shows how strong and clear the opportunity is
+                                        </p>
+                                    </div>
 
-                        <div class="rounded-2xl border border-line bg-shell px-4 py-4">
-                            <p class="text-sm text-gray-500 mb-1">Risk Level</p>
-                            <p id="heroRiskPosture" class="text-xl font-bold">LOW</p>
-                        </div>
-                    </div>
+                                    <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                                        <p class="text-sm text-gray-500 mb-1">Signal Strength</p>
+                                        <p id="heroSignalStrength" class="text-xl font-bold">Weak</p>
+                                    </div>
 
-                    <div class="rounded-2xl border border-line bg-shell px-4 py-4">
-                        <div class="flex items-start justify-between gap-4">
-                            <div>
-                                <p class="text-sm text-gray-500 mb-1">News Impact</p>
-                                <p id="heroNewsImpact" class="text-xl font-bold">NEUTRAL</p>
+                                    <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                                        <p class="text-sm text-gray-500 mb-1">Trade Stance</p>
+                                        <p id="heroTradeStance" class="text-xl font-bold">No Trade</p>
+                                    </div>
+
+                                    <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                                        <p class="text-sm text-gray-500 mb-1">Risk Level</p>
+                                        <p id="heroRiskPosture" class="text-xl font-bold">LOW</p>
+                                    </div>
+                                </div>
+
+                                <div class="rounded-2xl border border-line bg-shell px-4 py-4">
+                                    <div class="flex items-start justify-between gap-4">
+                                        <div>
+                                            <p class="text-sm text-gray-500 mb-1">News Impact</p>
+                                            <p id="heroNewsImpact" class="text-xl font-bold">NEUTRAL</p>
+                                        </div>
+                                        <p id="heroNewsMeta" class="text-sm text-gray-500 mt-1">0 article(s)</p>
+                                    </div>
+                                </div>
                             </div>
-                            <p id="heroNewsMeta" class="text-sm text-gray-500 mt-1">0 article(s)</p>
+
+                            <div class="rounded-3xl border border-line bg-shell p-5 space-y-5 h-full">
+                                <div>
+                                    <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">AI Summary</p>
+                                    <p id="heroSummary" class="text-[15px] leading-7 text-gray-700">
+                                        Loading current market assessment...
+                                    </p>
+                                </div>
+
+                                <div class="pt-4 border-t border-line">
+                                    <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">What This Means</p>
+                                    <p id="heroSignalExplainer" class="text-[15px] leading-7 text-gray-700">
+                                        The AI is preparing a readable explanation of the current setup.
+                                    </p>
+                                </div>
+
+                                <div class="pt-4 border-t border-line">
+                                    <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">Score Note</p>
+                                    <p id="heroScoreHint" class="text-sm leading-6 text-gray-600">
+                                        This score reflects the strength of the setup, not certainty about the current market price.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="rounded-3xl border border-line bg-shell p-5 space-y-5 h-full">
-                    <div>
-                        <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">AI Summary</p>
-                        <p id="heroSummary" class="text-[15px] leading-7 text-gray-700">
-                            Loading current market assessment...
-                        </p>
+                <div class="xl:col-span-4 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
+                    <div class="flex items-center justify-between mb-5">
+                        <div>
+                            <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold">Scenario View</p>
+                            <h3 class="text-xl font-bold mt-1">Expected Move Range</h3>
+                        </div>
                     </div>
 
-                    <div class="pt-4 border-t border-line">
-                        <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">What This Means</p>
-                        <p id="heroSignalExplainer" class="text-[15px] leading-7 text-gray-700">
-                            The AI is preparing a readable explanation of the current setup.
-                        </p>
+                    <div class="space-y-3">
+                        <div class="rounded-2xl border border-line p-4 bg-shell">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">Best Case</span>
+                                <span id="bullCase" class="text-lg font-bold text-green-700">0%</span>
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-line p-4 bg-shell">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">Base Case</span>
+                                <span id="baseCase" class="text-lg font-bold text-indigo-700">0%</span>
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-line p-4 bg-shell">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">Risk Case</span>
+                                <span id="bearCase" class="text-lg font-bold text-rose-700">0%</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="pt-4 border-t border-line">
-                        <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">Score Note</p>
-                        <p id="heroScoreHint" class="text-sm leading-6 text-gray-600">
-                            This score reflects the strength of the setup, not certainty about the current market price.
+                    <div class="mt-6 rounded-3xl border border-line bg-white p-4">
+                        <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">Chart Controls</p>
+                        <p class="text-sm leading-6 text-gray-600">
+                            Scroll to zoom. Drag horizontally to pan. Use Reset Zoom anytime to return to the full six-month view.
                         </p>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="xl:col-span-4 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
-        <div class="flex items-center justify-between mb-5">
-            <div>
-                <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold">Scenario View</p>
-                <h3 class="text-xl font-bold mt-1">Expected Move Range</h3>
-            </div>
-        </div>
-
-        <div class="space-y-3">
-            <div class="rounded-2xl border border-line p-4 bg-shell">
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-500">Best Case</span>
-                    <span id="bullCase" class="text-lg font-bold text-green-700">0%</span>
-                </div>
-            </div>
-
-            <div class="rounded-2xl border border-line p-4 bg-shell">
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-500">Base Case</span>
-                    <span id="baseCase" class="text-lg font-bold text-indigo-700">0%</span>
-                </div>
-            </div>
-
-            <div class="rounded-2xl border border-line p-4 bg-shell">
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-500">Risk Case</span>
-                    <span id="bearCase" class="text-lg font-bold text-rose-700">0%</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="mt-6 rounded-3xl border border-line bg-white p-4">
-            <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">Guidance</p>
-            <p class="text-sm leading-6 text-gray-600">
-                Use this range as a planning tool, not a guarantee. The base case is the AI’s most likely path. The bull and bear cases help frame upside and downside risk.
-            </p>
-        </div>
-    </div>
-</section>
+            </section>
 
             <section class="grid grid-cols-1 xl:grid-cols-12 gap-6">
                 <div class="xl:col-span-8 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
                     <div class="flex items-center justify-between mb-5">
                         <div>
                             <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold">Market Structure</p>
-                            <h3 class="text-xl font-bold mt-1">Price and Forecast Context</h3>
+                            <h3 class="text-xl font-bold mt-1">Price and AI Forecast</h3>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button
+                                id="resetZoomBtn"
+                                class="px-4 py-2 rounded-xl border border-line bg-white text-sm font-semibold hover:border-ink transition-colors"
+                                type="button"
+                            >
+                                Reset Zoom
+                            </button>
+                            <div class="text-right">
+                                <p class="text-xs uppercase tracking-[0.16em] text-gray-500 font-semibold">Chart Source</p>
+                                <p id="chartMeta" class="text-sm font-semibold text-gray-700 mt-1">Binance 6M History + AI Forecast</p>
+                            </div>
                         </div>
                     </div>
-                    <div class="h-[380px]">
+
+                    <div class="h-[420px]">
                         <canvas id="priceChart"></canvas>
                     </div>
                 </div>
 
                 <div class="xl:col-span-4 bg-panel border border-line rounded-[28px] shadow-soft p-6 sm:p-7">
-                    <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-4">Risk and Validation</p>
+                    <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-5">Risk and Validation</p>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div class="rounded-2xl border border-line bg-shell p-4">
@@ -347,26 +378,21 @@
                     <div class="mt-5 rounded-3xl border border-line bg-shell p-5">
                         <p class="text-sm uppercase tracking-[0.18em] text-gray-500 font-semibold mb-3">How to Read This</p>
                         <p class="text-sm text-gray-600 leading-6">
-                            RSI and MACD help explain momentum. ATR helps show recent movement size. EMA 20 and SMA 20 help show short-term trend structure. These values support the AI view but should be read together, not in isolation.
+                            The chart loads six months by default. Use the mouse wheel to zoom and drag to move across history. The AI forecast remains visible above the historical path.
                         </p>
                     </div>
                 </div>
             </section>
         </main>
 
-        <section id="loadingState" class="bg-panel border border-line rounded-[28px] shadow-soft p-10 text-center">
-            <div class="w-14 h-14 mx-auto rounded-full border-4 border-gray-200 border-t-ink animate-spin mb-5"></div>
-            <h2 class="text-2xl font-bold mb-2">Preparing AI market view</h2>
-            <p class="text-gray-600 max-w-xl mx-auto leading-7">
-                The system is loading the latest market analysis, forecasts, and news context. This usually takes only a moment.
-            </p>
-        </section>
-
-        <section id="errorState" class="hidden bg-panel border border-red-200 rounded-[28px] shadow-soft p-10 text-center">
-            <h2 class="text-2xl font-bold mb-2 text-red-700">Unable to load market analysis</h2>
-            <p id="errorMessage" class="text-gray-700 max-w-xl mx-auto leading-7">
-                Something went wrong while loading the dashboard.
-            </p>
+        <section id="loadingState" class="rounded-[28px] border border-line bg-white shadow-soft p-10 text-center">
+            <div class="max-w-2xl mx-auto">
+                <p class="text-xs uppercase tracking-[0.22em] text-gray-500 font-semibold mb-4">Astra Intelligence</p>
+                <h2 class="text-3xl font-extrabold tracking-tight mb-3">Preparing the AI market workspace</h2>
+                <p class="text-gray-600 leading-7">
+                    The system is warming up the latest market analysis, historical chart view, and AI forecast context. Refresh in a moment if this stays visible.
+                </p>
+            </div>
         </section>
     </div>
 

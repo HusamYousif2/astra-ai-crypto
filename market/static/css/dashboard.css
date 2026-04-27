@@ -10,7 +10,8 @@ body {
     background: rgba(255, 255, 255, 0.75);
 }
 
-.coin-chip.active {
+.coin-chip.active,
+.filter-chip.active {
     background: #111827;
     color: white;
     border-color: #111827;
